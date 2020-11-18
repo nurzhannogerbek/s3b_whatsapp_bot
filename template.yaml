@@ -19,9 +19,9 @@ Parameters:
         Type: String
     Auth0Audience:
         Type: String
-    3beepCoreApiUrl:
+    AppsyncCoreApiUrl:
         Type: String
-    3beepCoreApiKey:
+    AppsyncCoreApiKey:
         Type: String
     DatabasesLayerARN:
         Type: String
@@ -44,10 +44,10 @@ Globals:
                     Fn::Sub: "${PostgreSQLPort}"
                 POSTGRESQL_DB_NAME:
                     Fn::Sub: "${PostgreSQLDBName}"
-                3BEEP_CORE_API_URL:
-                    Fn::Sub: "${3beepCoreApiUrl}"
-                3BEEP_CORE_API_KEY:
-                    Fn::Sub: "${3beepCoreApiKey}"
+                APPSYNC_CORE_API_URL:
+                    Fn::Sub: "${AppsyncCoreApiUrl}"
+                APPSYNC_CORE_API_KEY:
+                    Fn::Sub: "${AppsyncCoreApiKey}"
 Resources:
     WhatsappApiGateway:
         Type: AWS::Serverless::HttpApi
