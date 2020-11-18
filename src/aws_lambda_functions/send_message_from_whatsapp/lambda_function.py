@@ -10,6 +10,7 @@ def lambda_handler(event, context):
     :argument event: The AWS Lambda uses this parameter to pass in event data to the handler.
     :argument context: The AWS Lambda uses this parameter to provide runtime information to your handler.
     """
+    print(event)
     # Return the status code value of the request.
     return {
         "statusCode": 200
