@@ -1,0 +1,125 @@
+image:
+  name: python:3.8
+
+deploy: &deploy
+  - step:
+      script:
+        - >
+          if [ $BITBUCKET_BRANCH == "develop" ];
+          then
+            export POSTGRESQL_USERNAME=$DEV_POSTGRESQL_USERNAME
+            export POSTGRESQL_PASSWORD=$DEV_POSTGRESQL_PASSWORD
+            export POSTGRESQL_HOST=$DEV_POSTGRESQL_HOST
+            export POSTGRESQL_PORT=$DEV_POSTGRESQL_PORT
+            export POSTGRESQL_DB_NAME=$DEV_POSTGRESQL_DB_NAME
+            export S3_BUCKET="dev-3beep-whatsapp-bot"
+            export STACK_NAME="Dev3beepWhatsappBot"
+            export STAGE_NAME="dev"
+            export ENVIRONMENT_NAME="Dev"
+            export AUTH0_DOMAIN=$DEV_AUTH0_DOMAIN
+            export AUTH0_AUDIENCE=$DEV_AUTH0_AUDIENCE
+            export 3BEEP_CORE_API_URL=$DEV_3BEEP_CORE_API_URL
+            export 3BEEP_CORE_API_KEY=$DEV_3BEEP_CORE_API_KEY
+            export DATABASES_LAYER_NAME="DevDatabases"
+            export REQUESTS_LAYER_NAME="DevRequests"
+          fi
+        - >
+          if [ $BITBUCKET_BRANCH == "master" ];
+          then
+            export POSTGRESQL_USERNAME=$PROD_POSTGRESQL_USERNAME
+            export POSTGRESQL_PASSWORD=$PROD_POSTGRESQL_PASSWORD
+            export POSTGRESQL_HOST=$PROD_POSTGRESQL_HOST
+            export POSTGRESQL_PORT=$PROD_POSTGRESQL_PORT
+            export POSTGRESQL_DB_NAME=$PROD_POSTGRESQL_DB_NAME
+            export S3_BUCKET="prod-3beep-whatsapp-bot"
+            export STACK_NAME="Prod3beepWhatsappBot"
+            export STAGE_NAME="prod"
+            export ENVIRONMENT_NAME="Prod"
+            export AUTH0_DOMAIN=$PROD_AUTH0_DOMAIN
+            export AUTH0_AUDIENCE=$PROD_AUTH0_AUDIENCE
+            export 3BEEP_CORE_API_URL=$PROD_3BEEP_CORE_API_URL
+            export 3BEEP_CORE_API_KEY=$PROD_3BEEP_CORE_API_KEY
+            export DATABASES_LAYER_NAME="ProdDatabases"
+            export REQUESTS_LAYER_NAME="ProdRequests"
+          fi
+        - apt-get update && apt-get install -y python3-pip
+        - pip3 install -U awscli
+        - aws configure set default.region $AWS_DEFAULT_REGION
+        - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+        - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+        - export DATABASES_LAYER_ARN=$(aws lambda list-layer-versions --layer-name $DATABASES_LAYER_NAME --query 'max_by(LayerVersions, &Version).LayerVersionArn'  --output text)
+        - export REQUESTS_LAYER_ARN=$(aws lambda list-layer-versions --layer-name $REQUESTS_LAYER_NAME --query 'max_by(LayerVersions, &Version).LayerVersionArn'  --output text)
+        - pipe: atlassian/aws-sam-deploy:0.5.2
+          variables:
+            AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+            AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+            AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+            S3_BUCKET: $S3_BUCKET
+            STACK_NAME: $STACK_NAME
+            CAPABILITIES: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND']
+            SAM_TEMPLATE: 'template.yaml'
+            STACK_PARAMETERS: >
+              [
+                {
+                  "ParameterKey": "PostgreSQLUsername",
+                  "ParameterValue": ${POSTGRESQL_USERNAME}
+                },
+                {
+                  "ParameterKey": "PostgreSQLPassword",
+                  "ParameterValue": ${POSTGRESQL_PASSWORD}
+                },
+                {
+                  "ParameterKey": "PostgreSQLHost",
+                  "ParameterValue": ${POSTGRESQL_HOST}
+                },
+                {
+                  "ParameterKey": "PostgreSQLPort",
+                  "ParameterValue": "5432"
+                },
+                {
+                  "ParameterKey": "PostgreSQLDBName",
+                  "ParameterValue": ${POSTGRESQL_DB_NAME}
+                },
+                {
+                  "ParameterKey": "StageName",
+                  "ParameterValue": ${STAGE_NAME}
+                },
+                {
+                  "ParameterKey": "EnvironmentName",
+                  "ParameterValue": ${ENVIRONMENT_NAME}
+                },
+                {
+                  "ParameterKey": "Auth0Domain",
+                  "ParameterValue": ${AUTH0_DOMAIN}
+                },
+                {
+                  "ParameterKey": "Auth0Audience",
+                  "ParameterValue": ${AUTH0_AUDIENCE}
+                },
+                {
+                  "ParameterKey": "3beepCoreApiUrl",
+                  "ParameterValue": ${3BEEP_CORE_API_URL}
+                },
+                {
+                  "ParameterKey": "3beepCoreApiKey",
+                  "ParameterValue": ${3BEEP_CORE_API_KEY}
+                },
+                {
+                  "ParameterKey": "DatabasesLayerARN",
+                  "ParameterValue": ${DATABASES_LAYER_ARN}
+                },
+                {
+                  "ParameterKey": "RequestsLayerARN",
+                  "ParameterValue": ${REQUESTS_LAYER_ARN}
+                }
+              ]
+            WAIT: 'true'
+            WAIT_INTERVAL: 60
+            DEBUG: 'true'
+
+pipelines:
+  branches:
+    develop:
+      - <<: *deploy
+    master:
+      - <<: *deploy

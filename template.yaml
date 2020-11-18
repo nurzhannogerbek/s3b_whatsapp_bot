@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+    PostgreSQLUsername:
+        Type: String
+    PostgreSQLPassword:
+        Type: String
+    PostgreSQLHost:
+        Type: String
+    PostgreSQLPort:
+        Type: String
+    PostgreSQLDBName:
+        Type: String
+    StageName:
+        Type: String
+    EnvironmentName:
+        Type: String
+    Auth0Domain:
+        Type: String
+    Auth0Audience:
+        Type: String
+    3beepCoreApiUrl:
+        Type: String
+    3beepCoreApiKey:
+        Type: String
+    DatabasesLayerARN:
+        Type: String
+    RequestsLayerARN:
+        Type: String
+Globals:
+    Function:
+        Runtime: python3.8
+        MemorySize: 3008
+        Timeout: 900
+        Environment:
+            Variables:
+                POSTGRESQL_USERNAME:
+                    Fn::Sub: "${PostgreSQLUsername}"
+                POSTGRESQL_PASSWORD:
+                    Fn::Sub: "${PostgreSQLPassword}"
+                POSTGRESQL_HOST:
+                    Fn::Sub: "${PostgreSQLHost}"
+                POSTGRESQL_PORT:
+                    Fn::Sub: "${PostgreSQLPort}"
+                POSTGRESQL_DB_NAME:
+                    Fn::Sub: "${PostgreSQLDBName}"
+                3BEEP_CORE_API_URL:
+                    Fn::Sub: "${3beepCoreApiUrl}"
+                3BEEP_CORE_API_KEY:
+                    Fn::Sub: "${3beepCoreApiKey}"
+Resources:
+    WhatsappApiGateway:
+        Type: AWS::Serverless::HttpApi
+        Properties:
+            StageName:
+                Fn::Sub: "${StageName}"
+            CorsConfiguration:
+                AllowMethods:
+                    - POST
+                AllowHeaders:
+                    - "*"
+                AllowOrigins:
+                    - "*"
+            Auth:
+                Authorizers:
+                    Auth0Authorizer:
+                        JwtConfiguration:
+                            issuer:
+                                Fn::Sub: "${Auth0Domain}"
+                            audience:
+                                - Fn::Sub: "${Auth0Audience}"
+                        IdentitySource: "$request.header.Authorization"
+    SendMessageFromWhatsapp:
+        Type: AWS::Serverless::Function
+        Properties:
+            FunctionName:
+                Fn::Sub: "${EnvironmentName}SendMessageFromWhatsapp"
+            CodeUri: src/aws_lambda_functions/send_message_from_whatsapp
+            Handler: lambda_function.lambda_handler
+            Events:
+                WhatsappApiGatewayEvent:
+                    Type: HttpApi
+                    Properties:
+                        ApiId:
+                            Ref: WhatsappApiGateway
+                        Path: /send_message_from_whatsapp
+                        Method: POST
+            Layers:
+                - Fn::Sub: "${DatabasesLayerARN}"
+                - Fn::Sub: "${RequestsLayerARN}"
