@@ -18,8 +18,8 @@ deploy: &deploy
             export ENVIRONMENT_NAME="Dev"
             export AUTH0_DOMAIN=$DEV_AUTH0_DOMAIN
             export AUTH0_AUDIENCE=$DEV_AUTH0_AUDIENCE
-            export 3BEEP_CORE_API_URL=$DEV_3BEEP_CORE_API_URL
-            export 3BEEP_CORE_API_KEY=$DEV_3BEEP_CORE_API_KEY
+            export APPSYNC_CORE_API_URL=$DEV_APPSYNC_CORE_API_URL
+            export APPSYNC_CORE_API_KEY=$DEV_APPSYNC_CORE_API_KEY
             export DATABASES_LAYER_NAME="DevDatabases"
             export REQUESTS_LAYER_NAME="DevRequests"
           fi
@@ -37,8 +37,8 @@ deploy: &deploy
             export ENVIRONMENT_NAME="Prod"
             export AUTH0_DOMAIN=$PROD_AUTH0_DOMAIN
             export AUTH0_AUDIENCE=$PROD_AUTH0_AUDIENCE
-            export 3BEEP_CORE_API_URL=$PROD_3BEEP_CORE_API_URL
-            export 3BEEP_CORE_API_KEY=$PROD_3BEEP_CORE_API_KEY
+            export APPSYNC_CORE_API_URL=$PROD_APPSYNC_CORE_API_URL
+            export APPSYNC_CORE_API_KEY=$PROD_APPSYNC_CORE_API_KEY
             export DATABASES_LAYER_NAME="ProdDatabases"
             export REQUESTS_LAYER_NAME="ProdRequests"
           fi
@@ -97,12 +97,12 @@ deploy: &deploy
                   "ParameterValue": ${AUTH0_AUDIENCE}
                 },
                 {
-                  "ParameterKey": "3beepCoreApiUrl",
-                  "ParameterValue": ${3BEEP_CORE_API_URL}
+                  "ParameterKey": "AppsyncCoreApiUrl",
+                  "ParameterValue": ${APPSYNC_CORE_API_URL}
                 },
                 {
-                  "ParameterKey": "3beepCoreApiKey",
-                  "ParameterValue": ${3BEEP_CORE_API_KEY}
+                  "ParameterKey": "AppsyncCoreApiKey",
+                  "ParameterValue": ${APPSYNC_CORE_API_KEY}
                 },
                 {
                   "ParameterKey": "DatabasesLayerARN",
