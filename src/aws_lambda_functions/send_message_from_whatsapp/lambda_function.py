@@ -39,7 +39,7 @@ def lambda_handler(event, context):
     contacts = body["contacts"][0]
     whatsapp_profile = contacts["profile"]["name"]
     whatsapp_username = contacts["wa_id"]
-    messages = contacts["messages"][0]
+    messages = body["messages"][0]
     message_type = messages["type"]
 
     # Check the message type value.
