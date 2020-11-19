@@ -12,6 +12,8 @@ deploy: &deploy
             export POSTGRESQL_HOST=$DEV_POSTGRESQL_HOST
             export POSTGRESQL_PORT=$DEV_POSTGRESQL_PORT
             export POSTGRESQL_DB_NAME=$DEV_POSTGRESQL_DB_NAME
+            export WHATSAPP_BOT_TOKEN=$DEV_WHATSAPP_BOT_TOKEN
+            export WHATSAPP_API_URL=$DEV_WHATSAPP_API_URL
             export S3_BUCKET="dev-3beep-whatsapp-bot"
             export STACK_NAME="Dev3beepWhatsappBot"
             export STAGE_NAME="dev"
@@ -31,6 +33,8 @@ deploy: &deploy
             export POSTGRESQL_HOST=$PROD_POSTGRESQL_HOST
             export POSTGRESQL_PORT=$PROD_POSTGRESQL_PORT
             export POSTGRESQL_DB_NAME=$PROD_POSTGRESQL_DB_NAME
+            export WHATSAPP_BOT_TOKEN=$PROD_WHATSAPP_BOT_TOKEN
+            export WHATSAPP_API_URL=$PROD_WHATSAPP_API_URL
             export S3_BUCKET="prod-3beep-whatsapp-bot"
             export STACK_NAME="Prod3beepWhatsappBot"
             export STAGE_NAME="prod"
@@ -103,6 +107,14 @@ deploy: &deploy
                 {
                   "ParameterKey": "AppsyncCoreApiKey",
                   "ParameterValue": ${APPSYNC_CORE_API_KEY}
+                },
+                {
+                  "ParameterKey": "WhatsappBotToken",
+                  "ParameterValue": ${WHATSAPP_BOT_TOKEN}
+                },
+                {
+                  "ParameterKey": "WhatsappApiUrl",
+                  "ParameterValue": ${WHATSAPP_API_URL}
                 },
                 {
                   "ParameterKey": "DatabasesLayerARN",

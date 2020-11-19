@@ -23,6 +23,10 @@ Parameters:
         Type: String
     AppsyncCoreApiKey:
         Type: String
+    WhatsappBotToken:
+        Type: String
+    WhatsappApiUrl:
+        Type: String
     DatabasesLayerARN:
         Type: String
     RequestsLayerARN:
@@ -44,6 +48,10 @@ Globals:
                     Fn::Sub: "${PostgreSQLPort}"
                 POSTGRESQL_DB_NAME:
                     Fn::Sub: "${PostgreSQLDBName}"
+                WHATSAPP_BOT_TOKEN:
+                    Fn::Sub: "${WhatsappBotToken}"
+                WHATSAPP_API_URL:
+                    Fn::Sub: "${WhatsappApiUrl}"
                 APPSYNC_CORE_API_URL:
                     Fn::Sub: "${AppsyncCoreApiUrl}"
                 APPSYNC_CORE_API_KEY:
