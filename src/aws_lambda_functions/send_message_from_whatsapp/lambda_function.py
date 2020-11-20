@@ -92,6 +92,12 @@ def lambda_handler(event, context):
             elif chat_room_status == "completed":
                 activate_closed_chat_room(chat_room_id, client_id)
 
+            print("chat_room_id: " + chat_room_id)
+            print("client_id: " + client_id)
+            print("channel_id: " + channel_id)
+            print("message_type: " + message_type)
+            print("message_text: " + message_text)
+
             # Add a new message from the client to the database.
             create_chat_room_message(chat_room_id, client_id, channel_id, message_type, message_text)
         else:
@@ -325,6 +331,8 @@ def create_chat_room_message(chat_room_id, message_author_id, message_channel_id
     except Exception as error:
         logger.error(error)
         sys.exit(1)
+
+    print("response.status_code: " + response.status_code)
 
     # Return nothing.
     return None
