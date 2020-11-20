@@ -238,7 +238,7 @@ def create_chat_room(channel_technical_id, channel_type_name, client_id, whatsap
     print(response.json()["chatRoomId"])
 
     # Return the information about the specific chat room.
-    return response
+    return response.json()
 
 
 def create_chat_room_message(chat_room_id, message_author_id, message_channel_id, message_type, message_text):
