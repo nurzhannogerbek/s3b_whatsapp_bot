@@ -87,8 +87,8 @@ def lambda_handler(event, context):
                 chat_room_entry = create_chat_room(WHATSAPP_BOT_TOKEN, "whatsapp", client_id, whatsapp_chat_id)
 
                 # Define several variables that will be used in the future.
-                chat_room_id = chat_room_entry.get("chatRoomId", None)
-                channel_id = chat_room_entry.get("channelId", None)
+                chat_room_id = chat_room_entry["data"]["createChatRoom"]["chatRoomId"]
+                channel_id = chat_room_entry["data"]["createChatRoom"]["channelId"]
             elif chat_room_status == "completed":
                 activate_closed_chat_room(chat_room_id, client_id)
 
@@ -233,9 +233,6 @@ def create_chat_room(channel_technical_id, channel_type_name, client_id, whatsap
     except Exception as error:
         logger.error(error)
         sys.exit(1)
-
-    print(response.json())
-    print(response.json()["chatRoomId"])
 
     # Return the information about the specific chat room.
     return response.json()

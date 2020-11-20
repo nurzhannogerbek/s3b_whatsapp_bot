@@ -96,3 +96,43 @@ Resources:
             Layers:
                 - Fn::Sub: "${DatabasesLayerARN}"
                 - Fn::Sub: "${RequestsLayerARN}"
+    SendMessageToWhatsapp:
+        Type: AWS::Serverless::Function
+        Properties:
+            FunctionName:
+                Fn::Sub: "${EnvironmentName}SendMessageToWhatsapp"
+            CodeUri: src/aws_lambda_functions/send_message_to_whatsapp
+            Handler: lambda_function.lambda_handler
+            Events:
+                WhatsappApiGatewayEvent:
+                    Type: HttpApi
+                    Properties:
+                        ApiId:
+                            Ref: WhatsappApiGateway
+                        Path: /send_message_to_whatsapp
+                        Method: POST
+                        Auth:
+                            Authorizer: Auth0Authorizer
+            Layers:
+                - Fn::Sub: "${DatabasesLayerARN}"
+                - Fn::Sub: "${RequestsLayerARN}"
+    SendNotificationToWhatsapp:
+        Type: AWS::Serverless::Function
+        Properties:
+            FunctionName:
+                Fn::Sub: "${EnvironmentName}SendNotificationToWhatsapp"
+            CodeUri: src/aws_lambda_functions/send_notification_to_whatsapp
+            Handler: lambda_function.lambda_handler
+            Events:
+                WhatsappApiGatewayEvent:
+                    Type: HttpApi
+                    Properties:
+                        ApiId:
+                            Ref: WhatsappApiGateway
+                        Path: /send_notification_to_whatsapp
+                        Method: POST
+                        Auth:
+                            Authorizer: Auth0Authorizer
+            Layers:
+                - Fn::Sub: "${DatabasesLayerARN}"
+                - Fn::Sub: "${RequestsLayerARN}"
