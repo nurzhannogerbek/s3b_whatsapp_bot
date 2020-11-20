@@ -234,8 +234,8 @@ def create_chat_room(channel_technical_id, channel_type_name, client_id, whatsap
         logger.error(error)
         sys.exit(1)
 
-    print(response)
-    print(response["chatRoomId"])
+    print(response.json())
+    print(response.json()["chatRoomId"])
 
     # Return the information about the specific chat room.
     return response
