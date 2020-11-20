@@ -511,7 +511,7 @@ def create_identified_user(postgresql_db_connection, metadata, whatsapp_profile,
         '{2}',
         '{3}'
     )
-    on conflict on constraint identified_users_telegram_username_key 
+    on conflict on constraint identified_users_whatsapp_username_key 
     do nothing
     returning
         identified_user_id;
