@@ -87,7 +87,7 @@ Resources:
                     Properties:
                         ApiId:
                             Ref: WhatsappApiGateway
-                        Path: /send_message_from_whatsapp/:business_account
+                        Path: /send_message_from_whatsapp/{business_account}
                         Method: POST
             Layers:
                 - Fn::Sub: "${DatabasesLayerARN}"
