@@ -48,7 +48,7 @@ def lambda_handler(event, context):
         message_type = message_information["type"]
 
         # Determine the business account from which clients write.
-        business_account = json.loads(event['rawPath']).rsplit('/', 1)[1]
+        business_account = event['rawPath'].rsplit('/', 1)[1]
 
         global postgresql_connection
         if not postgresql_connection:
