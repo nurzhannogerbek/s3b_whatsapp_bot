@@ -88,7 +88,7 @@ def lambda_handler(event, context):
     whatsapp_bot_token = aggregated_data["whatsapp_bot_token"]
 
     # Send a message to the Whatsapp business account.
-    request_url = "{0}v1/messages".format(WHATSAPP_API_URL)
+    request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
     payload = {
         "to": whatsapp_chat_id,
         "type": "text",

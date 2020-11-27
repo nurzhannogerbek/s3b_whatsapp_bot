@@ -153,7 +153,7 @@ def send_message_to_whatsapp(whatsapp_bot_token, message_text, whatsapp_chat_id)
     The main task of this function is to send the specific message to the WhatsApp.
     """
     # Send a message to the Whatsapp business account.
-    request_url = "{0}v1/messages".format(WHATSAPP_API_URL)
+    request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
     payload = {
         "to": whatsapp_chat_id,
         "type": "text",
