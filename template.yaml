@@ -23,8 +23,6 @@ Parameters:
         Type: String
     AppsyncCoreApiKey:
         Type: String
-    WhatsappBotToken:
-        Type: String
     WhatsappApiUrl:
         Type: String
     DatabasesLayerARN:
@@ -48,8 +46,6 @@ Globals:
                     Fn::Sub: "${PostgreSQLPort}"
                 POSTGRESQL_DB_NAME:
                     Fn::Sub: "${PostgreSQLDBName}"
-                WHATSAPP_BOT_TOKEN:
-                    Fn::Sub: "${WhatsappBotToken}"
                 WHATSAPP_API_URL:
                     Fn::Sub: "${WhatsappApiUrl}"
                 APPSYNC_CORE_API_URL:
@@ -91,7 +87,7 @@ Resources:
                     Properties:
                         ApiId:
                             Ref: WhatsappApiGateway
-                        Path: /send_message_from_whatsapp
+                        Path: /send_message_from_whatsapp/:business_account
                         Method: POST
             Layers:
                 - Fn::Sub: "${DatabasesLayerARN}"

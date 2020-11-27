@@ -20,7 +20,6 @@ POSTGRESQL_PASSWORD = os.environ["POSTGRESQL_PASSWORD"]
 POSTGRESQL_HOST = os.environ["POSTGRESQL_HOST"]
 POSTGRESQL_PORT = int(os.environ["POSTGRESQL_PORT"])
 POSTGRESQL_DB_NAME = os.environ["POSTGRESQL_DB_NAME"]
-WHATSAPP_BOT_TOKEN = os.environ["WHATSAPP_BOT_TOKEN"]
 WHATSAPP_API_URL = os.environ["WHATSAPP_API_URL"]
 APPSYNC_CORE_API_URL = os.environ["APPSYNC_CORE_API_URL"]
 APPSYNC_CORE_API_KEY = os.environ["APPSYNC_CORE_API_KEY"]
@@ -40,6 +39,7 @@ def lambda_handler(event, context):
 
     # Check for specific keys.
     if "messages" in keys and "contacts" in keys:
+        # Define the general information.
         metadata = body["contacts"][0]
         whatsapp_profile = metadata["profile"]["name"]
         whatsapp_username = metadata["wa_id"]
@@ -47,22 +47,28 @@ def lambda_handler(event, context):
         message_information = body["messages"][0]
         message_type = message_information["type"]
 
+        # Determine the business account from which clients write.
+        business_account = json.loads(event['rawPath']).rsplit('/', 1)[1]
+
+        global postgresql_connection
+        if not postgresql_connection:
+            try:
+                postgresql_connection = databases.create_postgresql_connection(
+                    POSTGRESQL_USERNAME,
+                    POSTGRESQL_PASSWORD,
+                    POSTGRESQL_HOST,
+                    POSTGRESQL_PORT,
+                    POSTGRESQL_DB_NAME
+                )
+            except Exception as error:
+                logger.error(error)
+                sys.exit(1)
+
+        # Get whatsapp bot token from the database.
+        whatsapp_bot_token = get_whatsapp_bot_token(postgresql_connection, business_account)
+
         # Check the message type value.
         if message_type == "text":
-            global postgresql_connection
-            if not postgresql_connection:
-                try:
-                    postgresql_connection = databases.create_postgresql_connection(
-                        POSTGRESQL_USERNAME,
-                        POSTGRESQL_PASSWORD,
-                        POSTGRESQL_HOST,
-                        POSTGRESQL_PORT,
-                        POSTGRESQL_DB_NAME
-                    )
-                except Exception as error:
-                    logger.error(error)
-                    sys.exit(1)
-
             # Define the client's message text.
             message_text = message_information["text"]["body"]
 
@@ -84,7 +90,7 @@ def lambda_handler(event, context):
                 client_id = create_identified_user(postgresql_connection, metadata, whatsapp_profile, whatsapp_username)
 
                 # Call a mutation called "createChatRoom" from AppSync.
-                chat_room_entry = create_chat_room(WHATSAPP_BOT_TOKEN, "whatsapp", client_id, whatsapp_chat_id)
+                chat_room_entry = create_chat_room(whatsapp_bot_token, "whatsapp", client_id, whatsapp_chat_id)
 
                 # Define several variables that will be used in the future.
                 chat_room_id = chat_room_entry["data"]["createChatRoom"]["chatRoomId"]
@@ -97,7 +103,7 @@ def lambda_handler(event, context):
         else:
             message_text = "🤖💬\nОбработка данного формата сообщения в данный момент невозможна.\nПросим прощения за " \
                             "доставленные временные неудобства!"
-            send_message_to_whatsapp(whatsapp_username, message_text)
+            send_message_to_whatsapp(whatsapp_bot_token, whatsapp_username, message_text)
 
     # Return the status code value of the request.
     return {
@@ -105,7 +111,48 @@ def lambda_handler(event, context):
     }
 
 
-def send_message_to_whatsapp(whatsapp_username, message_text):
+def get_whatsapp_bot_token(postgresql_db_connection, business_account):
+    """
+    Function name:
+    get_whatsapp_bot_token
+
+    Function description:
+    The main task of this function is to get the value of the chat bot token.
+    """
+    # With a dictionary cursor, the data is sent in a form of Python dictionaries.
+    cursor = postgresql_db_connection.cursor(cursor_factory=RealDictCursor)
+
+    # Prepare the SQL request that creates the new identified user.
+    statement = """
+    select
+        channels.channel_technical_id as whatsapp_bot_token
+    from
+        whatsapp_business_accounts
+    left join channels on
+        whatsapp_business_accounts.channel_id = channels.channel_id
+    where
+        whatsapp_business_accounts.business_account = '{0}'
+    limit 1;
+    """.format(business_account)
+
+    # Execute a previously prepared SQL query.
+    try:
+        cursor.execute(statement)
+    except Exception as error:
+        logger.error(error)
+        sys.exit(1)
+
+    # After the successful execution of the query commit your changes to the database.
+    postgresql_db_connection.commit()
+
+    # Define the id of the created identified user.
+    whatsapp_bot_token = cursor.fetchone()["whatsapp_bot_token"]
+
+    # Return chat bot token.
+    return whatsapp_bot_token
+
+
+def send_message_to_whatsapp(whatsapp_bot_token, whatsapp_username, message_text):
     """
     Function name:
     send_message_to_whatsapp
@@ -124,7 +171,7 @@ def send_message_to_whatsapp(whatsapp_username, message_text):
     }
     headers = {
         'Content-Type': 'application/json',
-        'D360-Api-Key': WHATSAPP_BOT_TOKEN
+        'D360-Api-Key': whatsapp_bot_token
     }
     try:
         response = requests.post(request_url, json=payload, headers=headers)

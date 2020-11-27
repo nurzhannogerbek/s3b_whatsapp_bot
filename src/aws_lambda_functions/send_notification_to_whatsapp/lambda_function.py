@@ -20,7 +20,6 @@ POSTGRESQL_PASSWORD = os.environ["POSTGRESQL_PASSWORD"]
 POSTGRESQL_HOST = os.environ["POSTGRESQL_HOST"]
 POSTGRESQL_PORT = int(os.environ["POSTGRESQL_PORT"])
 POSTGRESQL_DB_NAME = os.environ["POSTGRESQL_DB_NAME"]
-WHATSAPP_BOT_TOKEN = os.environ["WHATSAPP_BOT_TOKEN"]
 WHATSAPP_API_URL = os.environ["WHATSAPP_API_URL"]
 
 logger = logging.getLogger(__name__)  # Create the logger with the specified name.
@@ -60,11 +59,14 @@ def lambda_handler(event, context):
     # Prepare the SQL request that gives the minimal information about the specific chat room.
     statement = """
     select
-        whatsapp_chat_rooms.whatsapp_chat_id
+        whatsapp_chat_rooms.whatsapp_chat_id,
+        channels.channel_technical_id as whatsapp_bot_token
     from
         chat_rooms
     left join whatsapp_chat_rooms on
         chat_rooms.chat_room_id = whatsapp_chat_rooms.chat_room_id
+    left join channels on
+        chat_rooms.channel_id = channels.channel_id
     where
         chat_rooms.chat_room_id = '{0}'
     limit 1;
@@ -81,7 +83,9 @@ def lambda_handler(event, context):
     postgresql_connection.commit()
 
     # Fetch the next row of a query result set.
-    whatsapp_chat_id = cursor.fetchone()["whatsapp_chat_id"]
+    aggregated_data = cursor.fetchone()
+    whatsapp_chat_id = aggregated_data["whatsapp_chat_id"]
+    whatsapp_bot_token = aggregated_data["whatsapp_bot_token"]
 
     # Send a message to the Whatsapp business account.
     request_url = "{0}v1/messages".format(WHATSAPP_API_URL)
@@ -94,7 +98,7 @@ def lambda_handler(event, context):
     }
     headers = {
         'Content-Type': 'application/json',
-        'D360-Api-Key': WHATSAPP_BOT_TOKEN
+        'D360-Api-Key': whatsapp_bot_token
     }
     try:
         response = requests.post(request_url, json=payload, headers=headers)

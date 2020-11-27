@@ -20,7 +20,6 @@ POSTGRESQL_PASSWORD = os.environ["POSTGRESQL_PASSWORD"]
 POSTGRESQL_HOST = os.environ["POSTGRESQL_HOST"]
 POSTGRESQL_PORT = int(os.environ["POSTGRESQL_PORT"])
 POSTGRESQL_DB_NAME = os.environ["POSTGRESQL_DB_NAME"]
-WHATSAPP_BOT_TOKEN = os.environ["WHATSAPP_BOT_TOKEN"]
 WHATSAPP_API_URL = os.environ["WHATSAPP_API_URL"]
 APPSYNC_CORE_API_URL = os.environ["APPSYNC_CORE_API_URL"]
 APPSYNC_CORE_API_KEY = os.environ["APPSYNC_CORE_API_KEY"]
@@ -95,11 +94,14 @@ def lambda_handler(event, context):
     # Prepare the SQL request that gives the minimal information about the specific chat room.
     statement = """
     select
-        whatsapp_chat_rooms.whatsapp_chat_id
+        whatsapp_chat_rooms.whatsapp_chat_id,
+        channels.channel_technical_id as whatsapp_bot_token
     from
         chat_rooms
     left join whatsapp_chat_rooms on
         chat_rooms.chat_room_id = whatsapp_chat_rooms.chat_room_id
+    left join channels on
+        chat_rooms.channel_id = channels.channel_id
     where
         chat_rooms.chat_room_id = '{0}'
     limit 1;
@@ -115,13 +117,10 @@ def lambda_handler(event, context):
     # After the successful execution of the query commit your changes to the database.
     postgresql_connection.commit()
 
-    # Define several necessary variables.
-    # Execute a previously prepared SQL query.
-    try:
-        whatsapp_chat_id = cursor.fetchone()["whatsapp_chat_id"]
-    except Exception as error:
-        logger.error(error)
-        sys.exit(1)
+    # Fetch the next row of a query result set.
+    aggregated_data = cursor.fetchone()
+    whatsapp_chat_id = aggregated_data["whatsapp_chat_id"]
+    whatsapp_bot_token = aggregated_data["whatsapp_bot_token"]
 
     # The cursor will be unusable from this point forward.
     cursor.close()
@@ -136,7 +135,7 @@ def lambda_handler(event, context):
     )
 
     # Send a message to the WhatsApp chat room.
-    send_message_to_whatsapp(message_text, whatsapp_chat_id)
+    send_message_to_whatsapp(whatsapp_bot_token, message_text, whatsapp_chat_id)
 
     # Return the object with information about created chat room message.
     return {
@@ -145,7 +144,7 @@ def lambda_handler(event, context):
     }
 
 
-def send_message_to_whatsapp(message_text, whatsapp_chat_id):
+def send_message_to_whatsapp(whatsapp_bot_token, message_text, whatsapp_chat_id):
     """
     Function name:
     send_message_to_whatsapp
@@ -164,7 +163,7 @@ def send_message_to_whatsapp(message_text, whatsapp_chat_id):
     }
     headers = {
         'Content-Type': 'application/json',
-        'D360-Api-Key': WHATSAPP_BOT_TOKEN
+        'D360-Api-Key': whatsapp_bot_token
     }
     try:
         response = requests.post(request_url, json=payload, headers=headers)
