@@ -837,11 +837,14 @@ def lambda_handler(event, context):
                 }
             )
 
-            # Define a few necessary variables that will be used in the future.
-            chat_room_id = aggregated_data.get("chat_room_id", None)
-            channel_id = aggregated_data.get("channel_id", None)
-            chat_room_status = aggregated_data.get("chat_room_status", None)
-            client_id = aggregated_data.get("client_id", None)
+            # Define several variables that will be used in the future.
+            if not aggregated_data:
+                chat_room_id = aggregated_data["chat_room_id"]
+                channel_id = aggregated_data["channel_id"]
+                chat_room_status = aggregated_data["chat_room_status"]
+                client_id = aggregated_data["client_id"]
+            else:
+                chat_room_id, channel_id, chat_room_status, client_id = None, None, None, None
 
             # Define the message text.
             try:
