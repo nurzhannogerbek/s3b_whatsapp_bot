@@ -245,7 +245,7 @@ def get_aggregated_data(**kwargs) -> Dict:
     return cursor.fetchone()
 
 
-def create_chat_room(**kwargs) -> None:
+def create_chat_room(**kwargs) -> Dict:
     # Check if the input dictionary has all the necessary keys.
     try:
         channel_technical_id = kwargs["channel_technical_id"]
@@ -264,11 +264,6 @@ def create_chat_room(**kwargs) -> None:
         raise Exception(error)
     try:
         whatsapp_chat_id = kwargs["whatsapp_chat_id"]
-    except KeyError as error:
-        logger.error(error)
-        raise Exception(error)
-    try:
-        queue = kwargs["queue"]
     except KeyError as error:
         logger.error(error)
         raise Exception(error)
@@ -371,15 +366,12 @@ def create_chat_room(**kwargs) -> None:
         logger.error(error)
         raise Exception(error)
 
-    # Put the result of the function in the queue.
-    queue.put({"chat_room": response.json()})
-
-    # Return nothing.
-    return None
+    # Return the JSON object of the response.
+    return response.json()
 
 
 @postgresql_wrapper
-def create_identified_user(**kwargs) -> None:
+def create_identified_user(**kwargs) -> AnyStr:
     # Check if the input dictionary has all the necessary keys.
     try:
         cursor = kwargs["cursor"]
@@ -388,11 +380,6 @@ def create_identified_user(**kwargs) -> None:
         raise Exception(error)
     try:
         sql_arguments = kwargs["sql_arguments"]
-    except KeyError as error:
-        logger.error(error)
-        raise Exception(error)
-    try:
-        queue = kwargs["queue"]
     except KeyError as error:
         logger.error(error)
         raise Exception(error)
@@ -436,11 +423,8 @@ def create_identified_user(**kwargs) -> None:
         logger.error(error)
         raise Exception(error)
 
-    # Put the result of the function in the queue.
-    queue.put({"client_id": cursor.fetchone()["user_id"]})
-
-    # Return nothing.
-    return None
+    # Return the id of the new created user.
+    return cursor.fetchone()["user_id"]
 
 
 def activate_closed_chat_room(**kwargs):
@@ -855,42 +839,26 @@ def lambda_handler(event, context):
 
             # Check the chat room status.
             if chat_room_status is None:
-                # Run several functions in parallel.
-                results_of_tasks = run_multithreading_tasks([
-                    {
-                        "function_object": create_identified_user,
-                        "function_arguments": {
-                            "postgresql_connection": postgresql_connection,
-                            "sql_arguments": {
-                                "identified_user_primary_phone_number": "+{0}".format(whatsapp_username),
-                                "metadata": json.dumps(metadata),
-                                "whatsapp_profile": whatsapp_profile,
-                                "whatsapp_username": whatsapp_username
-                            }
-                        }
-                    },
-                    {
-                        "function_object": create_chat_room,
-                        "function_arguments": {
-                            "channel_technical_id": whatsapp_bot_token,
-                            "client_id": client_id,
-                            "last_message_content": message_text,
-                            "whatsapp_chat_id": whatsapp_chat_id
-                        }
+                # Create the new user.
+                client_id = create_identified_user(
+                    postgresql_connection=postgresql_connection,
+                    sql_arguments={
+                        "identified_user_primary_phone_number": "+{0}".format(whatsapp_username),
+                        "metadata": json.dumps(metadata),
+                        "whatsapp_profile": whatsapp_profile,
+                        "whatsapp_username": whatsapp_username
                     }
-                ])
+                )
+
+                # Create the new chat room.
+                chat_room = create_chat_room(
+                    channel_technical_id=whatsapp_bot_token,
+                    client_id=client_id,
+                    last_message_content=message_text,
+                    whatsapp_chat_id=whatsapp_chat_id
+                )
 
                 # Define a few necessary variables that will be used in the future.
-                try:
-                    chat_room = results_of_tasks["chat_room"]
-                except Exception as error:
-                    logger.error(error)
-                    raise Exception(error)
-                try:
-                    client_id = results_of_tasks["client_id"]
-                except Exception as error:
-                    logger.error(error)
-                    raise Exception(error)
                 try:
                     chat_room_id = chat_room["data"]["createChatRoom"]["chatRoomId"]
                 except Exception as error:
