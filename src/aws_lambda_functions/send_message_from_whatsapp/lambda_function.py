@@ -154,7 +154,7 @@ def send_message_to_whatsapp(**kwargs) -> None:
         logger.error(error)
         raise Exception(error)
     try:
-        whatsapp_username = kwargs["whatsapp_username"]
+        whatsapp_chat_id = kwargs["whatsapp_chat_id"]
     except KeyError as error:
         logger.error(error)
         raise Exception(error)
@@ -169,7 +169,7 @@ def send_message_to_whatsapp(**kwargs) -> None:
 
     # Create the parameters.
     parameters = {
-        "to": whatsapp_username,
+        "to": whatsapp_chat_id,
         "type": "text",
         "text": {
             "body": message_text
@@ -930,11 +930,11 @@ def lambda_handler(event, context):
             # Define the message text.
             message_text = "🤖💬\nОбработка данного формата в данный момент невозможна."
 
-            # Send the prepared text to the telegram client.
+            # Send the prepared text to the whatsapp client.
             send_message_to_whatsapp(
                 whatsapp_bot_token=whatsapp_bot_token,
                 message_text=message_text,
-                whatsapp_username=whatsapp_username
+                whatsapp_chat_id=whatsapp_chat_id
             )
 
     # Return the status code 200.

@@ -1,20 +1,20 @@
-import databases
 import logging
-import sys
 import os
-import json
-import requests
 from psycopg2.extras import RealDictCursor
+from functools import wraps
+from typing import *
+import json
+from threading import Thread
+from queue import Queue
+import uuid
+import requests
+import databases
 
+# Configure the logging tool in the AWS Lambda function.
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 
-"""
-Define the connection to the database outside of the "lambda_handler" function.
-The connection to the database will be created the first time the function is called.
-Any subsequent function call will use the same database connections.
-"""
-postgresql_connection = None
-
-# Define global variables.
+# Initialize constants with parameters to configure.
 POSTGRESQL_USERNAME = os.environ["POSTGRESQL_USERNAME"]
 POSTGRESQL_PASSWORD = os.environ["POSTGRESQL_PASSWORD"]
 POSTGRESQL_HOST = os.environ["POSTGRESQL_HOST"]
@@ -22,20 +22,99 @@ POSTGRESQL_PORT = int(os.environ["POSTGRESQL_PORT"])
 POSTGRESQL_DB_NAME = os.environ["POSTGRESQL_DB_NAME"]
 WHATSAPP_API_URL = os.environ["WHATSAPP_API_URL"]
 
-logger = logging.getLogger(__name__)  # Create the logger with the specified name.
-logger.setLevel(logging.WARNING)  # Set the logging level of the logger.
+# The connection to the database will be created the first time the AWS Lambda function is called.
+# Any subsequent call to the function will use the same database connection until the container stops.
+POSTGRESQL_CONNECTION = None
 
 
-def lambda_handler(event, context):
-    """
-    :argument event: The AWS Lambda uses this parameter to pass in event data to the handler.
-    :argument context: The AWS Lambda uses this parameter to provide runtime information to your handler.
-    """
-    # Since the connection with the database was defined outside of the function, we create the global variable.
-    global postgresql_connection
-    if not postgresql_connection:
+def run_multithreading_tasks(functions: List[Dict[AnyStr, Union[Callable, Dict[AnyStr, Any]]]]) -> Dict[AnyStr, Any]:
+    # Create the empty list to save all parallel threads.
+    threads = []
+
+    # Create the queue to store all results of functions.
+    queue = Queue()
+
+    # Create the thread for each function.
+    for function in functions:
+        # Check whether the input arguments have keys in their dictionaries.
         try:
-            postgresql_connection = databases.create_postgresql_connection(
+            function_object = function["function_object"]
+        except KeyError as error:
+            logger.error(error)
+            raise Exception(error)
+        try:
+            function_arguments = function["function_arguments"]
+        except KeyError as error:
+            logger.error(error)
+            raise Exception(error)
+
+        # Add the instance of the queue to the list of function arguments.
+        function_arguments["queue"] = queue
+
+        # Create the thread.
+        thread = Thread(target=function_object, kwargs=function_arguments)
+        threads.append(thread)
+
+    # Start all parallel threads.
+    for thread in threads:
+        thread.start()
+
+    # Wait until all parallel threads are finished.
+    for thread in threads:
+        thread.join()
+
+    # Get the results of all threads.
+    results = {}
+    while not queue.empty():
+        results = {**results, **queue.get()}
+
+    # Return the results of all threads.
+    return results
+
+
+def check_input_arguments(**kwargs) -> None:
+    # Make sure that all the necessary arguments for the AWS Lambda function are present.
+    try:
+        input_arguments = kwargs["body"]["arguments"]["input"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        queue = kwargs["queue"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Check the format and values of required arguments in the list of input arguments.
+    required_arguments = ["chatRoomId", "notificationDescription"]
+    for argument_name, argument_value in input_arguments.items():
+        if argument_name not in required_arguments:
+            raise Exception("The '{0}' argument doesn't exist.".format(argument_name))
+        if argument_value is None:
+            raise Exception("The '{0}' argument can't be None/Null/Undefined.".format(argument_name))
+        if argument_name.endswith("Id"):
+            try:
+                uuid.UUID(argument_value)
+            except ValueError:
+                raise Exception("The '{0}' argument format is not UUID.".format(argument_name))
+
+    # Put the result of the function in the queue.
+    queue.put({
+        "input_arguments": {
+            "chat_room_id": input_arguments.get("chatRoomId", None),
+            "notification_description": input_arguments.get("notificationDescription", None)
+        }
+    })
+
+    # Return nothing.
+    return None
+
+
+def reuse_or_recreate_postgresql_connection(queue: Queue) -> None:
+    global POSTGRESQL_CONNECTION
+    if not POSTGRESQL_CONNECTION:
+        try:
+            POSTGRESQL_CONNECTION = databases.create_postgresql_connection(
                 POSTGRESQL_USERNAME,
                 POSTGRESQL_PASSWORD,
                 POSTGRESQL_HOST,
@@ -44,20 +123,43 @@ def lambda_handler(event, context):
             )
         except Exception as error:
             logger.error(error)
-            sys.exit(1)
+            raise Exception("Unable to connect to the PostgreSQL database.")
+    queue.put({"postgresql_connection": POSTGRESQL_CONNECTION})
+    return None
 
-    # Parse the JSON object.
-    body = json.loads(event['body'])
 
-    # Define the values of the data passed to the function.
-    chat_room_id = body["arguments"]["input"]["chatRoomId"]
-    notification_description = body["arguments"]["input"]["notificationDescription"]
+def postgresql_wrapper(function):
+    @wraps(function)
+    def wrapper(**kwargs):
+        try:
+            postgresql_connection = kwargs["postgresql_connection"]
+        except KeyError as error:
+            logger.error(error)
+            raise Exception(error)
+        cursor = postgresql_connection.cursor(cursor_factory=RealDictCursor)
+        kwargs["cursor"] = cursor
+        result = function(**kwargs)
+        cursor.close()
+        return result
+    return wrapper
 
-    # With a dictionary cursor, the data is sent in a form of Python dictionaries.
-    cursor = postgresql_connection.cursor(cursor_factory=RealDictCursor)
 
-    # Prepare the SQL request that gives the minimal information about the specific chat room.
-    statement = """
+@postgresql_wrapper
+def get_aggregated_data(**kwargs) -> Dict:
+    # Check if the input dictionary has all the necessary keys.
+    try:
+        cursor = kwargs["cursor"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        sql_arguments = kwargs["sql_arguments"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Prepare the SQL query that gives the minimal information about the chat room.
+    sql_statement = """
     select
         whatsapp_chat_rooms.whatsapp_chat_id,
         channels.channel_technical_id as whatsapp_bot_token
@@ -68,46 +170,134 @@ def lambda_handler(event, context):
     left join channels on
         chat_rooms.channel_id = channels.channel_id
     where
-        chat_rooms.chat_room_id = '{0}'
+        chat_rooms.chat_room_id = %(chat_room_id)s
     limit 1;
-    """.format(chat_room_id)
+    """
 
-    # Execute a previously prepared SQL query.
+    # Execute the SQL query dynamically, in a convenient and safe way.
     try:
-        cursor.execute(statement)
+        cursor.execute(sql_statement, sql_arguments)
     except Exception as error:
         logger.error(error)
-        sys.exit(1)
+        raise Exception(error)
 
-    # After the successful execution of the query commit your changes to the database.
-    postgresql_connection.commit()
+    # Return the aggregated data.
+    return cursor.fetchone()
 
-    # Fetch the next row of a query result set.
-    aggregated_data = cursor.fetchone()
-    whatsapp_chat_id = aggregated_data["whatsapp_chat_id"]
-    whatsapp_bot_token = aggregated_data["whatsapp_bot_token"]
 
-    # Send a message to the Whatsapp business account.
+def send_message_to_whatsapp(**kwargs) -> None:
+    # Check if the input dictionary has all the necessary keys.
+    try:
+        whatsapp_bot_token = kwargs["whatsapp_bot_token"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        whatsapp_chat_id = kwargs["whatsapp_chat_id"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        message_text = kwargs["message_text"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Create the request URL address.
     request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
-    payload = {
+
+    # Create the parameters.
+    parameters = {
         "to": whatsapp_chat_id,
         "type": "text",
         "text": {
-            "body": "🤖💬\n{0}".format(notification_description)
+            "body": message_text
         }
     }
+
+    # Define the header setting.
     headers = {
         'Content-Type': 'application/json',
         'D360-Api-Key': whatsapp_bot_token
     }
+
+    # Execute POST request.
     try:
-        response = requests.post(request_url, json=payload, headers=headers)
+        response = requests.post(request_url, json=parameters, headers=headers)
         response.raise_for_status()
     except Exception as error:
         logger.error(error)
-        sys.exit(1)
+        raise Exception(error)
 
     # Return nothing.
+    return None
+
+
+def lambda_handler(event, context):
+    """
+    :param event: The AWS Lambda function uses this parameter to pass in event data to the handler.
+    :param context: The AWS Lambda function uses this parameter to provide runtime information to your handler.
+    """
+    # Parse the JSON object.
+    try:
+        body = json.loads(event["body"])
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Run several initialization functions in parallel.
+    results_of_tasks = run_multithreading_tasks([
+        {
+            "function_object": check_input_arguments,
+            "function_arguments": {
+                "body": body
+            }
+        },
+        {
+            "function_object": reuse_or_recreate_postgresql_connection,
+            "function_arguments": {}
+        },
+    ])
+
+    # Define the input arguments of the AWS Lambda function.
+    input_arguments = results_of_tasks["input_arguments"]
+    chat_room_id = input_arguments["chat_room_id"]
+    notification_description = input_arguments["notification_description"]
+
+    # Define the instances of the database connections.
+    postgresql_connection = results_of_tasks["postgresql_connection"]
+
+    # Get the aggregated data.
+    aggregated_data = get_aggregated_data(
+        postgresql_connection=postgresql_connection,
+        sql_arguments={
+            "chat_room_id": chat_room_id
+        }
+    )
+
+    # Define a few necessary variables that will be used in the future.
+    try:
+        whatsapp_chat_id = aggregated_data["whatsapp_chat_id"]
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        whatsapp_bot_token = aggregated_data["whatsapp_bot_token"]
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Define the message text.
+    message_text = "🤖💬\n{0}".format(notification_description)
+
+    # Send the prepared text to the whatsapp client.
+    send_message_to_whatsapp(
+        whatsapp_bot_token=whatsapp_bot_token,
+        message_text=message_text,
+        whatsapp_chat_id=whatsapp_chat_id
+    )
+
+    # Return the status code 200.
     return {
         "statusCode": 200
     }
