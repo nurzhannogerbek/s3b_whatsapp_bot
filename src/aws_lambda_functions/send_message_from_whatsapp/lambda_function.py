@@ -838,7 +838,7 @@ def lambda_handler(event, context):
             )
 
             # Define several variables that will be used in the future.
-            if not aggregated_data:
+            if aggregated_data is not None:
                 chat_room_id = aggregated_data["chat_room_id"]
                 channel_id = aggregated_data["channel_id"]
                 chat_room_status = aggregated_data["chat_room_status"]
@@ -854,7 +854,7 @@ def lambda_handler(event, context):
                 raise Exception(error)
 
             # Check the chat room status.
-            if not chat_room_status:
+            if chat_room_status is None:
                 # Run several functions in parallel.
                 results_of_tasks = run_multithreading_tasks([
                     {
