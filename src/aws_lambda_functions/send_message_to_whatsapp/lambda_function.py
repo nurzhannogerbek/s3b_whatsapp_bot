@@ -314,6 +314,7 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
             }
         ) {
             channelId
+            channelTypeName
             chatRoomId
             chatRoomStatus
             localMessageId

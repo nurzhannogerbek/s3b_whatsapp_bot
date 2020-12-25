@@ -616,6 +616,7 @@ def create_chat_room_message(**kwargs):
             }
         ) {
             channelId
+            channelTypeName
             chatRoomId
             chatRoomStatus
             localMessageId
