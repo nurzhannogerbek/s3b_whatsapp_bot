@@ -245,7 +245,7 @@ def get_aggregated_data(**kwargs) -> Dict:
     return cursor.fetchone()
 
 
-def create_chat_room(**kwargs) -> Dict:
+def create_chat_room(**kwargs) -> json:
     # Check if the input dictionary has all the necessary keys.
     try:
         channel_technical_id = kwargs["channel_technical_id"]
