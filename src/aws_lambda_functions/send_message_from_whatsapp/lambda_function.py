@@ -427,7 +427,7 @@ def create_identified_user(**kwargs) -> None:
     sql_arguments["identified_user_id"] = cursor.fetchone()["identified_user_id"]
 
     # Prepare the SQL query that creates the user.
-    sql_statement = "insert into users(identified_user_id) values(%(identified_user_id)s) returning user_id;"
+    sql_statement = "insert into users(identified_user_id) values(%(identified_user_id)s) returning user_id::text;"
 
     # Execute the SQL query dynamically, in a convenient and safe way.
     try:
@@ -437,7 +437,7 @@ def create_identified_user(**kwargs) -> None:
         raise Exception(error)
 
     # Put the result of the function in the queue.
-    queue.put({"user_id": cursor.fetchone()["user_id"]})
+    queue.put({"client_id": cursor.fetchone()["user_id"]})
 
     # Return nothing.
     return None
