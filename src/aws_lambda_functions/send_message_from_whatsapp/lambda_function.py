@@ -413,7 +413,7 @@ def create_identified_user(**kwargs) -> None:
     on conflict on constraint identified_users_whatsapp_username_key 
     do nothing
     returning
-        identified_user_id;
+        identified_user_id::text;
     """
 
     # Execute the SQL query dynamically, in a convenient and safe way.
