@@ -298,6 +298,7 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
             input: {
                 chatRoomId: $chatRoomId,
                 localMessageId: $localMessageId,
+                isClient: true,
                 messageAuthorId: $messageAuthorId,
                 messageChannelId: $messageChannelId,
                 messageContentUrl: $messageContentUrl,
