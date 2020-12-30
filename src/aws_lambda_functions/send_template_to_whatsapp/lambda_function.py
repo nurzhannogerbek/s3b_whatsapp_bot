@@ -386,7 +386,7 @@ def lambda_handler(event, context):
 
     # Define the message text.
     input_arguments["message_text"] = "Здравствуйте! Ваше сообщение было получено нами, пока мы были недоступны. Можем "
-    "ли мы связаться с вами по поводу вашего вопроса еще раз? Если вы согласны, пожалуйста, отправьте нам ДА."
+    "ли мы связаться с вами по поводу вашего вопроса еще раз?\nЕсли вы согласны, пожалуйста, отправьте нам ДА."
 
     # Send the message to the operator and save it in the database.
     chat_room_message = create_chat_room_message(input_arguments=input_arguments)
