@@ -158,7 +158,7 @@ def get_whatsapp_bot_token(**kwargs) -> AnyStr:
     # Prepare the SQL query that returns the whatsapp bot token of the specific chat room.
     sql_statement = """
     select
-        channels.channel_technical_id::text as whatsapp_bot_token
+        channels.channel_technical_id as whatsapp_bot_token
     from
         chat_rooms
     left join channels on
@@ -240,13 +240,17 @@ def lambda_handler(event, context):
     input_arguments = results_of_tasks["input_arguments"]
     chat_room_id = input_arguments.get("chat_room_id", None)
 
-    # Get the whatsapp bot token.
-    whatsapp_bot_token = get_whatsapp_bot_token(
-        postgresql_connection=postgresql_connection,
-        sql_arguments={
-            "chat_room_id": chat_room_id
-        }
-    )
+    try:
+        # Get the whatsapp bot token.
+        whatsapp_bot_token = get_whatsapp_bot_token(
+            postgresql_connection=postgresql_connection,
+            sql_arguments={
+                "chat_room_id": chat_room_id
+            }
+        )
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
 
     # Get the list of available templates.
     templates = get_templates(whatsapp_bot_token=whatsapp_bot_token)
