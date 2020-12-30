@@ -298,17 +298,15 @@ def send_template_to_whatsapp(**kwargs) -> None:
 
     # Create the parameters.
     parameters = {
-        {
-            "to": whatsapp_chat_id,
-            "ttl": "P1D",
-            "type": "hsm",
-            "hsm": {
-                "namespace": "98519ab7_9b3c_4f38_87d3_50846c76fcf5",
-                "element_name": "keep_alive",
-                "language": {
-                    "policy": "deterministic",
-                    "code": "ru"
-                }
+        "to": whatsapp_chat_id,
+        "ttl": "P1D",
+        "type": "hsm",
+        "hsm": {
+            "namespace": "98519ab7_9b3c_4f38_87d3_50846c76fcf5",
+            "element_name": "keep_alive",
+            "language": {
+                "policy": "deterministic",
+                "code": "ru"
             }
         }
     }
