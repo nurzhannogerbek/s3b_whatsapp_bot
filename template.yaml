@@ -146,7 +146,7 @@ Resources:
                         ApiId:
                             Ref: WhatsappApiGateway
                         Path: /get_templates
-                        Method: POST
+                        Method: GET
                         Auth:
                             Authorizer: Auth0Authorizer
             Layers:
@@ -165,7 +165,7 @@ Resources:
                     Properties:
                         ApiId:
                             Ref: WhatsappApiGateway
-                        Path: /get_templates
+                        Path: /send_template_to_whatsapp
                         Method: POST
                         Auth:
                             Authorizer: Auth0Authorizer
