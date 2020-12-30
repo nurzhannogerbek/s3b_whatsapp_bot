@@ -179,7 +179,7 @@ def get_whatsapp_bot_token(**kwargs) -> AnyStr:
     return cursor.fetchone()["whatsapp_bot_token"]
 
 
-def get_templates(**kwargs) -> List:
+def get_templates(**kwargs) -> json:
     # Check if the input dictionary has all the necessary keys.
     try:
         whatsapp_bot_token = kwargs["whatsapp_bot_token"]
@@ -203,8 +203,8 @@ def get_templates(**kwargs) -> List:
         logger.error(error)
         raise Exception(error)
 
-    # Return the list of templates.
-    return response
+    # Return the JSON object of the response.
+    return response.json()
 
 
 def lambda_handler(event, context):
