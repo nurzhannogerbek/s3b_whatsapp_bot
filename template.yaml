@@ -132,3 +132,43 @@ Resources:
             Layers:
                 - Fn::Sub: "${DatabasesLayerARN}"
                 - Fn::Sub: "${RequestsLayerARN}"
+    GetTemplates:
+        Type: AWS::Serverless::Function
+        Properties:
+            FunctionName:
+                Fn::Sub: "${EnvironmentName}GetTemplates"
+            CodeUri: src/aws_lambda_functions/get_templates
+            Handler: lambda_function.lambda_handler
+            Events:
+                WhatsappApiGatewayEvent:
+                    Type: HttpApi
+                    Properties:
+                        ApiId:
+                            Ref: WhatsappApiGateway
+                        Path: /get_templates
+                        Method: POST
+                        Auth:
+                            Authorizer: Auth0Authorizer
+            Layers:
+                - Fn::Sub: "${DatabasesLayerARN}"
+                - Fn::Sub: "${RequestsLayerARN}"
+    SendTemplateToWhatsapp:
+        Type: AWS::Serverless::Function
+        Properties:
+            FunctionName:
+                Fn::Sub: "${EnvironmentName}SendTemplateToWhatsapp"
+            CodeUri: src/aws_lambda_functions/send_template_to_whatsapp
+            Handler: lambda_function.lambda_handler
+            Events:
+                WhatsappApiGatewayEvent:
+                    Type: HttpApi
+                    Properties:
+                        ApiId:
+                            Ref: WhatsappApiGateway
+                        Path: /get_templates
+                        Method: POST
+                        Auth:
+                            Authorizer: Auth0Authorizer
+            Layers:
+                - Fn::Sub: "${DatabasesLayerARN}"
+                - Fn::Sub: "${RequestsLayerARN}"

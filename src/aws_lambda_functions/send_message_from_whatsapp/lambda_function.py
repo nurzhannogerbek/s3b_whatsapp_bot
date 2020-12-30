@@ -178,8 +178,8 @@ def send_message_to_whatsapp(**kwargs) -> None:
 
     # Define the header setting.
     headers = {
-        'Content-Type': 'application/json',
-        'D360-Api-Key': whatsapp_bot_token
+        "Content-Type": "application/json",
+        "D360-Api-Key": whatsapp_bot_token
     }
 
     # Execute POST request.

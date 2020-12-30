@@ -1,14 +1,15 @@
 import logging
 import os
+import uuid
 from psycopg2.extras import RealDictCursor
 from functools import wraps
 from typing import *
 import json
 from threading import Thread
 from queue import Queue
-import uuid
 import requests
 import databases
+
 
 # Configure the logging tool in the AWS Lambda function.
 logger = logging.getLogger(__name__)
@@ -75,34 +76,30 @@ def run_multithreading_tasks(functions: List[Dict[AnyStr, Union[Callable, Dict[A
 def check_input_arguments(**kwargs) -> None:
     # Make sure that all the necessary arguments for the AWS Lambda function are present.
     try:
-        input_arguments = kwargs["body"]["arguments"]["input"]
-    except KeyError as error:
-        logger.error(error)
-        raise Exception(error)
-    try:
         queue = kwargs["queue"]
     except KeyError as error:
         logger.error(error)
         raise Exception(error)
+    try:
+        input_arguments = kwargs["body"]["arguments"]["input"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
 
-    # Check the format and values of required arguments in the list of input arguments.
-    required_arguments = ["chatRoomId", "notificationDescription"]
-    for argument_name, argument_value in input_arguments.items():
-        if argument_name not in required_arguments:
-            raise Exception("The '{0}' argument doesn't exist.".format(argument_name))
-        if argument_value is None:
-            raise Exception("The '{0}' argument can't be None/Null/Undefined.".format(argument_name))
-        if argument_name.endswith("Id"):
-            try:
-                uuid.UUID(argument_value)
-            except ValueError:
-                raise Exception("The '{0}' argument format is not UUID.".format(argument_name))
+    # Check the format and values of required arguments.
+    chat_room_id = input_arguments.get("chatRoomId", None)
+    if chat_room_id is not None:
+        try:
+            uuid.UUID(chat_room_id)
+        except ValueError:
+            raise Exception("The 'chatRoomId' argument format is not UUID.")
+    else:
+        raise Exception("The 'chatRoomId' argument can't be None/Null/Undefined.")
 
     # Put the result of the function in the queue.
     queue.put({
         "input_arguments": {
-            "chat_room_id": input_arguments.get("chatRoomId", None),
-            "notification_description": input_arguments.get("notificationDescription", None)
+            "chat_room_id": chat_room_id
         }
     })
 
@@ -145,7 +142,7 @@ def postgresql_wrapper(function):
 
 
 @postgresql_wrapper
-def get_aggregated_data(**kwargs) -> Dict:
+def get_whatsapp_bot_token(**kwargs) -> AnyStr:
     # Check if the input dictionary has all the necessary keys.
     try:
         cursor = kwargs["cursor"]
@@ -158,15 +155,12 @@ def get_aggregated_data(**kwargs) -> Dict:
         logger.error(error)
         raise Exception(error)
 
-    # Prepare the SQL query that gives the minimal information about the chat room.
+    # Prepare the SQL query that returns the whatsapp bot token of the specific chat room.
     sql_statement = """
     select
-        whatsapp_chat_rooms.whatsapp_chat_id,
-        channels.channel_technical_id as whatsapp_bot_token
+        channels.channel_technical_id::text as whatsapp_bot_token
     from
         chat_rooms
-    left join whatsapp_chat_rooms on
-        chat_rooms.chat_room_id = whatsapp_chat_rooms.chat_room_id
     left join channels on
         chat_rooms.channel_id = channels.channel_id
     where
@@ -181,56 +175,36 @@ def get_aggregated_data(**kwargs) -> Dict:
         logger.error(error)
         raise Exception(error)
 
-    # Return the aggregated data.
-    return cursor.fetchone()
+    # Return the whatsapp bot token value.
+    return cursor.fetchone()["whatsapp_bot_token"]
 
 
-def send_message_to_whatsapp(**kwargs) -> None:
+def get_templates(**kwargs) -> List:
     # Check if the input dictionary has all the necessary keys.
     try:
         whatsapp_bot_token = kwargs["whatsapp_bot_token"]
     except KeyError as error:
         logger.error(error)
         raise Exception(error)
-    try:
-        whatsapp_chat_id = kwargs["whatsapp_chat_id"]
-    except KeyError as error:
-        logger.error(error)
-        raise Exception(error)
-    try:
-        message_text = kwargs["message_text"]
-    except KeyError as error:
-        logger.error(error)
-        raise Exception(error)
 
     # Create the request URL address.
-    request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
-
-    # Create the parameters.
-    parameters = {
-        "to": whatsapp_chat_id,
-        "type": "text",
-        "text": {
-            "body": message_text
-        }
-    }
+    request_url = "{0}/v1/configs/templates".format(WHATSAPP_API_URL)
 
     # Define the header setting.
     headers = {
-        "Content-Type": "application/json",
         "D360-Api-Key": whatsapp_bot_token
     }
 
-    # Execute POST request.
+    # Execute GET request.
     try:
-        response = requests.post(request_url, json=parameters, headers=headers)
+        response = requests.get(request_url, headers=headers)
         response.raise_for_status()
     except Exception as error:
         logger.error(error)
         raise Exception(error)
 
-    # Return nothing.
-    return None
+    # Return the list of templates.
+    return response
 
 
 def lambda_handler(event, context):
@@ -256,48 +230,29 @@ def lambda_handler(event, context):
         {
             "function_object": reuse_or_recreate_postgresql_connection,
             "function_arguments": {}
-        },
+        }
     ])
-
-    # Define the input arguments of the AWS Lambda function.
-    input_arguments = results_of_tasks["input_arguments"]
-    chat_room_id = input_arguments["chat_room_id"]
-    notification_description = input_arguments["notification_description"]
 
     # Define the instances of the database connections.
     postgresql_connection = results_of_tasks["postgresql_connection"]
 
-    # Get the aggregated data.
-    aggregated_data = get_aggregated_data(
+    # Define the input arguments of the AWS Lambda function.
+    input_arguments = results_of_tasks["input_arguments"]
+    chat_room_id = input_arguments.get("chat_room_id", None)
+
+    # Get the whatsapp bot token.
+    whatsapp_bot_token = get_whatsapp_bot_token(
         postgresql_connection=postgresql_connection,
         sql_arguments={
             "chat_room_id": chat_room_id
         }
     )
 
-    # Define a few necessary variables that will be used in the future.
-    try:
-        whatsapp_chat_id = aggregated_data["whatsapp_chat_id"]
-    except Exception as error:
-        logger.error(error)
-        raise Exception(error)
-    try:
-        whatsapp_bot_token = aggregated_data["whatsapp_bot_token"]
-    except Exception as error:
-        logger.error(error)
-        raise Exception(error)
-
-    # Define the message text.
-    message_text = "🤖💬\n{0}".format(notification_description)
-
-    # Send the prepared text to the whatsapp client.
-    send_message_to_whatsapp(
-        whatsapp_bot_token=whatsapp_bot_token,
-        message_text=message_text,
-        whatsapp_chat_id=whatsapp_chat_id
-    )
+    # Get the list of available templates.
+    templates = get_templates(whatsapp_bot_token=whatsapp_bot_token)
 
     # Return the status code 200.
     return {
-        "statusCode": 200
+        "statusCode": 200,
+        "body": json.dumps(templates)
     }

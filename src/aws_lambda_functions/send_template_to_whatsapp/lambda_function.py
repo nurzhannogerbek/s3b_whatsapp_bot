@@ -87,93 +87,25 @@ def check_input_arguments(**kwargs) -> None:
         logger.error(error)
         raise Exception(error)
 
-    # Check the format and values of required arguments.
-    chat_room_id = input_arguments.get("chatRoomId", None)
-    if chat_room_id is not None:
-        try:
-            uuid.UUID(chat_room_id)
-        except ValueError:
-            raise Exception("The 'chatRoomId' argument format is not UUID.")
-    else:
-        raise Exception("The 'chatRoomId' argument can't be None/Null/Undefined.")
-    message_author_id = input_arguments.get("messageAuthorId", None)
-    if message_author_id is not None:
-        try:
-            uuid.UUID(message_author_id)
-        except ValueError:
-            raise Exception("The 'messageAuthorId' argument format is not UUID.")
-    else:
-        raise Exception("The 'messageAuthorId' argument can't be None/Null/Undefined.")
-    message_channel_id = input_arguments.get("messageChannelId", None)
-    if message_channel_id is not None:
-        try:
-            uuid.UUID(message_channel_id)
-        except ValueError:
-            raise Exception("The 'messageChannelId' argument format is not UUID.")
-    else:
-        raise Exception("The 'messageChannelId' argument can't be None/Null/Undefined.")
-    message_type = input_arguments.get("messageType", None)
-    if message_type is None:
-        raise Exception("The 'messageType' argument can't be None/Null/Undefined.")
-    message_text = input_arguments.get("messageText", None)
-    message_content_url = input_arguments.get("messageContentUrl", None)
-    try:
-        quoted_message_id = input_arguments["quotedMessage"]["messageId"]
-    except KeyError:
-        quoted_message_id = None
-    if quoted_message_id is not None:
-        try:
-            uuid.UUID(quoted_message_id)
-        except ValueError:
-            raise Exception("The 'quotedMessageId' argument format is not UUID.")
-    try:
-        quoted_message_author_id = input_arguments["quotedMessage"]["messageAuthorId"]
-    except KeyError:
-        quoted_message_author_id = None
-    if quoted_message_author_id is not None:
-        try:
-            uuid.UUID(quoted_message_author_id)
-        except ValueError:
-            raise Exception("The 'quotedMessageAuthorId' argument format is not UUID.")
-    try:
-        quoted_message_channel_id = input_arguments["quotedMessage"]["messageChannelId"]
-    except KeyError:
-        quoted_message_channel_id = None
-    if quoted_message_channel_id is not None:
-        try:
-            uuid.UUID(quoted_message_channel_id)
-        except ValueError:
-            raise Exception("The 'quotedMessageChannelId' argument format is not UUID.")
-    try:
-        quoted_message_type = input_arguments["quotedMessage"]["messageType"]
-    except KeyError:
-        quoted_message_type = None
-    try:
-        quoted_message_text = input_arguments["quotedMessage"]["messageText"]
-    except KeyError:
-        quoted_message_text = None
-    try:
-        quoted_message_content_url = input_arguments["quotedMessage"]["messageContentUrl"]
-    except KeyError:
-        quoted_message_content_url = None
-    local_message_id = input_arguments.get("localMessageId", None)
+    # Check the format and values of required arguments in the list of input arguments.
+    required_arguments = ["chatRoomId", "messageAuthorId", "messageChannelId"]
+    for argument_name, argument_value in input_arguments.items():
+        if argument_name not in required_arguments:
+            raise Exception("The '{0}' argument doesn't exist.".format(argument_name))
+        if argument_value is None:
+            raise Exception("The '{0}' argument can't be None/Null/Undefined.".format(argument_name))
+        if argument_name.endswith("Id"):
+            try:
+                uuid.UUID(argument_value)
+            except ValueError:
+                raise Exception("The '{0}' argument format is not UUID.".format(argument_name))
 
     # Put the result of the function in the queue.
     queue.put({
         "input_arguments": {
-            "chat_room_id": chat_room_id,
-            "message_author_id": message_author_id,
-            "message_channel_id": message_channel_id,
-            "message_type": message_type,
-            "message_text": message_text,
-            "message_content_url": message_content_url,
-            "quoted_message_id": quoted_message_id,
-            "quoted_message_author_id": quoted_message_author_id,
-            "quoted_message_channel_id": quoted_message_channel_id,
-            "quoted_message_type": quoted_message_type,
-            "quoted_message_text": quoted_message_text,
-            "quoted_message_content_url": quoted_message_content_url,
-            "local_message_id": local_message_id
+            "chat_room_id": input_arguments.get("chatRoomId", None),
+            "message_author_id": input_arguments.get("messageAuthorId", None),
+            "message_channel_id": input_arguments.get("messageChannelId", None)
         }
     })
 
@@ -266,16 +198,7 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
     chat_room_id = input_arguments.get("chat_room_id", None)
     message_author_id = input_arguments.get("message_author_id", None)
     message_channel_id = input_arguments.get("message_channel_id", None)
-    message_type = input_arguments.get("message_type", None)
     message_text = input_arguments.get("message_text", None)
-    message_content_url = input_arguments.get("message_content_url", None)
-    quoted_message_id = input_arguments.get("quoted_message_id", None)
-    quoted_message_author_id = input_arguments.get("quoted_message_author_id", None)
-    quoted_message_channel_id = input_arguments.get("quoted_message_channel_id", None)
-    quoted_message_text = input_arguments.get("quoted_message_text", None)
-    quoted_message_type = input_arguments.get("quoted_message_type", None)
-    quoted_message_content_url = input_arguments.get("quoted_message_content_url", None)
-    local_message_id = input_arguments.get("local_message_id", None)
 
     # Define the GraphQL mutation.
     query = """
@@ -283,35 +206,16 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
         $chatRoomId: String!,
         $messageAuthorId: String!,
         $messageChannelId: String!,
-        $messageType: String!,
-        $messageText: String,
-        $messageContentUrl: String,
-        $quotedMessageId: String,
-        $quotedMessageAuthorId: String,
-        $quotedMessageChannelId: String,
-        $quotedMessageText: String,
-        $quotedMessageType: String,
-        $quotedMessageContentUrl: String,
-        $localMessageId: String
+        $messageText: String
     ) {
         createChatRoomMessage(
             input: {
+                isClient: false,
                 chatRoomId: $chatRoomId,
-                localMessageId: $localMessageId,
-                isClient: true,
                 messageAuthorId: $messageAuthorId,
                 messageChannelId: $messageChannelId,
-                messageContentUrl: $messageContentUrl,
                 messageText: $messageText,
-                messageType: $messageType,
-                quotedMessage: {
-                    messageAuthorId: $quotedMessageAuthorId,
-                    messageChannelId: $quotedMessageChannelId,
-                    messageContentUrl: $quotedMessageContentUrl,
-                    messageId: $quotedMessageId,
-                    messageText: $quotedMessageText,
-                    messageType: $quotedMessageType
-                }
+                messageType: "text"
             }
         ) {
             channelId
@@ -348,16 +252,7 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
         "chatRoomId": chat_room_id,
         "messageAuthorId": message_author_id,
         "messageChannelId": message_channel_id,
-        "messageType": message_type,
-        "messageText": message_text,
-        "messageContentUrl": message_content_url,
-        "quotedMessageId": quoted_message_id,
-        "quotedMessageAuthorId": quoted_message_author_id,
-        "quotedMessageChannelId": quoted_message_channel_id,
-        "quotedMessageText": quoted_message_text,
-        "$quotedMessageType": quoted_message_type,
-        "quotedMessageContentUrl": quoted_message_content_url,
-        "localMessageId": local_message_id
+        "messageText": message_text
     }
 
     # Define the header setting.
@@ -385,7 +280,7 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
     return response.json()
 
 
-def send_message_to_whatsapp(**kwargs) -> None:
+def send_template_to_whatsapp(**kwargs) -> None:
     # Check if the input dictionary has all the necessary keys.
     try:
         whatsapp_bot_token = kwargs["whatsapp_bot_token"]
@@ -397,21 +292,24 @@ def send_message_to_whatsapp(**kwargs) -> None:
     except KeyError as error:
         logger.error(error)
         raise Exception(error)
-    try:
-        message_text = kwargs["message_text"]
-    except KeyError as error:
-        logger.error(error)
-        raise Exception(error)
 
     # Create the request URL address.
     request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
 
     # Create the parameters.
     parameters = {
-        "to": whatsapp_chat_id,
-        "type": "text",
-        "text": {
-            "body": message_text
+        {
+            "to": whatsapp_chat_id,
+            "ttl": "P1D",
+            "type": "hsm",
+            "hsm": {
+                "namespace": "98519ab7_9b3c_4f38_87d3_50846c76fcf5",
+                "element_name": "keep_alive",
+                "language": {
+                    "policy": "deterministic",
+                    "code": "ru"
+                }
+            }
         }
     }
 
@@ -465,7 +363,6 @@ def lambda_handler(event, context):
     # Define the input arguments of the AWS Lambda function.
     input_arguments = results_of_tasks["input_arguments"]
     chat_room_id = input_arguments.get("chat_room_id", None)
-    message_text = input_arguments.get("message_text", None)
 
     # Get the aggregated data.
     aggregated_data = get_aggregated_data(
@@ -487,18 +384,15 @@ def lambda_handler(event, context):
         logger.error(error)
         raise Exception(error)
 
+    # Define the message text.
+    input_arguments["message_text"] = "Здравствуйте! Ваше сообщение было получено нами, пока мы были недоступны. Можем "
+    "ли мы связаться с вами по поводу вашего вопроса еще раз? Если вы согласны, пожалуйста, отправьте нам ДА."
+
     # Send the message to the operator and save it in the database.
     chat_room_message = create_chat_room_message(input_arguments=input_arguments)
 
-    # Define the message text.
-    message_text = "🙂💬\n{0}".format(message_text)
-
-    # Send the prepared text to the whatsapp client.
-    send_message_to_whatsapp(
-        whatsapp_bot_token=whatsapp_bot_token,
-        message_text=message_text,
-        whatsapp_chat_id=whatsapp_chat_id
-    )
+    # Send the prepared template to the whatsapp client.
+    send_template_to_whatsapp(whatsapp_bot_token=whatsapp_bot_token, whatsapp_chat_id=whatsapp_chat_id)
 
     # Return the status code 200.
     return {
