@@ -32,7 +32,7 @@ Parameters:
 Globals:
     Function:
         Runtime: python3.8
-        MemorySize: 3008
+        MemorySize: 10240
         Timeout: 900
         Environment:
             Variables:
