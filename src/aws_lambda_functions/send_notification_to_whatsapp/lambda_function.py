@@ -161,7 +161,7 @@ def get_aggregated_data(**kwargs) -> Dict:
     # Prepare the SQL query that gives the minimal information about the chat room.
     sql_statement = """
     select
-        whatsapp_chat_rooms.whatsapp_chat_id,
+        split_part(whatsapp_chat_rooms.whatsapp_chat_id, ':', 2) as whatsapp_chat_id,
         channels.channel_technical_id as whatsapp_bot_token
     from
         chat_rooms
