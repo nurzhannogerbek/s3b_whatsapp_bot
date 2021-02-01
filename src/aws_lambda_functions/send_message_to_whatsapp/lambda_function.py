@@ -490,9 +490,6 @@ def lambda_handler(event, context):
     # Send the message to the operator and save it in the database.
     chat_room_message = create_chat_room_message(input_arguments=input_arguments)
 
-    # Define the message text.
-    message_text = "🙂💬\n{0}".format(message_text)
-
     # Send the prepared text to the whatsapp client.
     send_message_to_whatsapp(
         whatsapp_bot_token=whatsapp_bot_token,
