@@ -410,7 +410,12 @@ def get_identified_user_data(**kwargs) -> AnyStr:
         raise Exception(error)
 
     # Return the id of the user.
-    return cursor.fetchone()["user_id"]
+    result = cursor.fetchone()
+    if result is None:
+        user_id = None
+    else:
+        user_id = result["user_id"]
+    return user_id
 
 
 @postgresql_wrapper
