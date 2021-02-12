@@ -610,12 +610,12 @@ def create_chat_room_message(**kwargs):
         logger.error(error)
         raise Exception(error)
     try:
-        message_type = kwargs["message_type"]
+        message_text = kwargs["message_text"]
     except KeyError as error:
         logger.error(error)
         raise Exception(error)
     try:
-        message_text = kwargs["message_text"]
+        message_content = kwargs["message_content"]
     except KeyError as error:
         logger.error(error)
         raise Exception(error)
@@ -626,8 +626,8 @@ def create_chat_room_message(**kwargs):
         $chatRoomId: String!,
         $messageAuthorId: String!,
         $messageChannelId: String!,
-        $messageType: String!,
-        $messageText: String
+        $messageText: String,
+        $messageContent: String
     ) {
         createChatRoomMessage(
             input: {
@@ -636,16 +636,14 @@ def create_chat_room_message(**kwargs):
                 isClient: true,
                 messageAuthorId: $messageAuthorId,
                 messageChannelId: $messageChannelId,
-                messageContentUrl: null,
+                messageContent: $messageContent,
                 messageText: $messageText,
-                messageType: $messageType,
                 quotedMessage: {
                     messageAuthorId: null,
                     messageChannelId: null,
-                    messageContentUrl: null,
+                    messageContent: null,
                     messageId: null,
-                    messageText: null,
-                    messageType: null
+                    messageText: null
                 }
             }
         ) {
@@ -656,7 +654,7 @@ def create_chat_room_message(**kwargs):
             localMessageId
             messageAuthorId
             messageChannelId
-            messageContentUrl
+            messageContent
             messageCreatedDateTime
             messageDeletedDateTime
             messageId
@@ -664,15 +662,13 @@ def create_chat_room_message(**kwargs):
             messageIsRead
             messageIsSent
             messageText
-            messageType
             messageUpdatedDateTime
             quotedMessage {
                 messageAuthorId
                 messageChannelId
-                messageContentUrl
+                messageContent
                 messageId
                 messageText
-                messageType
             }
         }
     }
@@ -683,8 +679,8 @@ def create_chat_room_message(**kwargs):
         "chatRoomId": chat_room_id,
         "messageAuthorId": message_author_id,
         "messageChannelId": message_channel_id,
-        "messageType": message_type,
-        "messageText": message_text
+        "messageText": message_text,
+        "messageContent": message_content
     }
 
     # Define the header setting.
@@ -744,7 +740,7 @@ def update_message_data(**kwargs):
             chatRoomMessages {
                 messageAuthorId
                 messageChannelId
-                messageContentUrl
+                messageContent
                 messageCreatedDateTime
                 messageDeletedDateTime
                 messageId
@@ -752,15 +748,13 @@ def update_message_data(**kwargs):
                 messageIsRead
                 messageIsSent
                 messageText
-                messageType
                 messageUpdatedDateTime
                 quotedMessage {
                     messageAuthorId
                     messageChannelId
-                    messageContentUrl
+                    messageContent
                     messageId
                     messageText
-                    messageType
                 }
             }
             chatRoomStatus
@@ -889,6 +883,12 @@ def lambda_handler(event, context):
                 logger.error(error)
                 raise Exception(error)
 
+            # Make up the content value of the last chat room message.
+            last_message_content = json.dumps({
+                "messageText": message_text,
+                "messageContent": None
+            })
+
             # Check the chat room status.
             if chat_room_status is None:
                 # Check whether the user was registered in the system earlier.
@@ -915,7 +915,7 @@ def lambda_handler(event, context):
                 chat_room = create_chat_room(
                     channel_technical_id=whatsapp_bot_token,
                     client_id=client_id,
-                    last_message_content=message_text,
+                    last_message_content=last_message_content,
                     whatsapp_chat_id="{0}:{1}".format(business_account, whatsapp_chat_id)
                 )
 
@@ -935,7 +935,7 @@ def lambda_handler(event, context):
                 activate_closed_chat_room(
                     chat_room_id=chat_room_id,
                     client_id=client_id,
-                    last_message_content=message_text
+                    last_message_content=last_message_content
                 )
 
             # Send the message to the operator and save it in the database.
@@ -943,8 +943,8 @@ def lambda_handler(event, context):
                 chat_room_id=chat_room_id,
                 message_author_id=client_id,
                 message_channel_id=channel_id,
-                message_type="text",
-                message_text=message_text
+                message_text=message_text,
+                message_content=None
             )
 
             # Define the id of the created message.

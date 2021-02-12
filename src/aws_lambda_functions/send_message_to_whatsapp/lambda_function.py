@@ -112,11 +112,8 @@ def check_input_arguments(**kwargs) -> None:
             raise Exception("The 'messageChannelId' argument format is not UUID.")
     else:
         raise Exception("The 'messageChannelId' argument can't be None/Null/Undefined.")
-    message_type = input_arguments.get("messageType", None)
-    if message_type is None:
-        raise Exception("The 'messageType' argument can't be None/Null/Undefined.")
     message_text = input_arguments.get("messageText", None)
-    message_content_url = input_arguments.get("messageContentUrl", None)
+    message_content = input_arguments.get("messageContent", None)
     try:
         quoted_message_id = input_arguments["quotedMessage"]["messageId"]
     except KeyError:
@@ -145,17 +142,13 @@ def check_input_arguments(**kwargs) -> None:
         except ValueError:
             raise Exception("The 'quotedMessageChannelId' argument format is not UUID.")
     try:
-        quoted_message_type = input_arguments["quotedMessage"]["messageType"]
-    except KeyError:
-        quoted_message_type = None
-    try:
         quoted_message_text = input_arguments["quotedMessage"]["messageText"]
     except KeyError:
         quoted_message_text = None
     try:
-        quoted_message_content_url = input_arguments["quotedMessage"]["messageContentUrl"]
+        quoted_message_content = input_arguments["quotedMessage"]["messageContent"]
     except KeyError:
-        quoted_message_content_url = None
+        quoted_message_content = None
     local_message_id = input_arguments.get("localMessageId", None)
 
     # Put the result of the function in the queue.
@@ -164,15 +157,13 @@ def check_input_arguments(**kwargs) -> None:
             "chat_room_id": chat_room_id,
             "message_author_id": message_author_id,
             "message_channel_id": message_channel_id,
-            "message_type": message_type,
             "message_text": message_text,
-            "message_content_url": message_content_url,
+            "message_content": message_content,
             "quoted_message_id": quoted_message_id,
             "quoted_message_author_id": quoted_message_author_id,
             "quoted_message_channel_id": quoted_message_channel_id,
-            "quoted_message_type": quoted_message_type,
             "quoted_message_text": quoted_message_text,
-            "quoted_message_content_url": quoted_message_content_url,
+            "quoted_message_content": quoted_message_content,
             "local_message_id": local_message_id
         }
     })
@@ -266,15 +257,13 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
     chat_room_id = input_arguments.get("chat_room_id", None)
     message_author_id = input_arguments.get("message_author_id", None)
     message_channel_id = input_arguments.get("message_channel_id", None)
-    message_type = input_arguments.get("message_type", None)
     message_text = input_arguments.get("message_text", None)
-    message_content_url = input_arguments.get("message_content_url", None)
+    message_content = input_arguments.get("message_content", None)
     quoted_message_id = input_arguments.get("quoted_message_id", None)
     quoted_message_author_id = input_arguments.get("quoted_message_author_id", None)
     quoted_message_channel_id = input_arguments.get("quoted_message_channel_id", None)
     quoted_message_text = input_arguments.get("quoted_message_text", None)
-    quoted_message_type = input_arguments.get("quoted_message_type", None)
-    quoted_message_content_url = input_arguments.get("quoted_message_content_url", None)
+    quoted_message_content = input_arguments.get("quoted_message_content", None)
     local_message_id = input_arguments.get("local_message_id", None)
 
     # Define the GraphQL mutation.
@@ -283,15 +272,13 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
         $chatRoomId: String!,
         $messageAuthorId: String!,
         $messageChannelId: String!,
-        $messageType: String!,
         $messageText: String,
-        $messageContentUrl: String,
+        $messageContent: String,
         $quotedMessageId: String,
         $quotedMessageAuthorId: String,
         $quotedMessageChannelId: String,
         $quotedMessageText: String,
-        $quotedMessageType: String,
-        $quotedMessageContentUrl: String,
+        $quotedMessageContent: String,
         $localMessageId: String
     ) {
         createChatRoomMessage(
@@ -301,16 +288,14 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
                 isClient: false,
                 messageAuthorId: $messageAuthorId,
                 messageChannelId: $messageChannelId,
-                messageContentUrl: $messageContentUrl,
+                messageContent: $messageContent,
                 messageText: $messageText,
-                messageType: $messageType,
                 quotedMessage: {
                     messageAuthorId: $quotedMessageAuthorId,
                     messageChannelId: $quotedMessageChannelId,
-                    messageContentUrl: $quotedMessageContentUrl,
+                    messageContent: $quotedMessageContent,
                     messageId: $quotedMessageId,
-                    messageText: $quotedMessageText,
-                    messageType: $quotedMessageType
+                    messageText: $quotedMessageText
                 }
             }
         ) {
@@ -321,7 +306,7 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
             localMessageId
             messageAuthorId
             messageChannelId
-            messageContentUrl
+            messageContent
             messageCreatedDateTime
             messageDeletedDateTime
             messageId
@@ -329,15 +314,13 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
             messageIsRead
             messageIsSent
             messageText
-            messageType
             messageUpdatedDateTime
             quotedMessage {
                 messageAuthorId
                 messageChannelId
-                messageContentUrl
+                messageContent
                 messageId
                 messageText
-                messageType
             }
         }
     }
@@ -348,15 +331,13 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
         "chatRoomId": chat_room_id,
         "messageAuthorId": message_author_id,
         "messageChannelId": message_channel_id,
-        "messageType": message_type,
         "messageText": message_text,
-        "messageContentUrl": message_content_url,
+        "messageContent": message_content,
         "quotedMessageId": quoted_message_id,
         "quotedMessageAuthorId": quoted_message_author_id,
         "quotedMessageChannelId": quoted_message_channel_id,
         "quotedMessageText": quoted_message_text,
-        "$quotedMessageType": quoted_message_type,
-        "quotedMessageContentUrl": quoted_message_content_url,
+        "quotedMessageContent": quoted_message_content,
         "localMessageId": local_message_id
     }
 
