@@ -1,57 +1,22 @@
 image:
   name: python:3.8
-
 deploy: &deploy
   - step:
+      caches:
+        - pip
       script:
-        - >
-          if [ $BITBUCKET_BRANCH == "develop" ];
-          then
-            export POSTGRESQL_USERNAME=$DEV_POSTGRESQL_USERNAME
-            export POSTGRESQL_PASSWORD=$DEV_POSTGRESQL_PASSWORD
-            export POSTGRESQL_HOST=$DEV_POSTGRESQL_HOST
-            export POSTGRESQL_PORT=$DEV_POSTGRESQL_PORT
-            export POSTGRESQL_DB_NAME=$DEV_POSTGRESQL_DB_NAME
-            export WHATSAPP_API_URL=$DEV_WHATSAPP_API_URL
-            export S3_BUCKET="dev-3beep-whatsapp-bot"
-            export STACK_NAME="Dev3beepWhatsappBot"
-            export STAGE_NAME="dev"
-            export ENVIRONMENT_NAME="Dev"
-            export AUTH0_DOMAIN=$DEV_AUTH0_DOMAIN
-            export AUTH0_AUDIENCE=$DEV_AUTH0_AUDIENCE
-            export APPSYNC_CORE_API_URL=$DEV_APPSYNC_CORE_API_URL
-            export APPSYNC_CORE_API_KEY=$DEV_APPSYNC_CORE_API_KEY
-            export DATABASES_LAYER_NAME="DevDatabases"
-            export REQUESTS_LAYER_NAME="DevRequests"
-          fi
-        - >
-          if [ $BITBUCKET_BRANCH == "master" ];
-          then
-            export POSTGRESQL_USERNAME=$PROD_POSTGRESQL_USERNAME
-            export POSTGRESQL_PASSWORD=$PROD_POSTGRESQL_PASSWORD
-            export POSTGRESQL_HOST=$PROD_POSTGRESQL_HOST
-            export POSTGRESQL_PORT=$PROD_POSTGRESQL_PORT
-            export POSTGRESQL_DB_NAME=$PROD_POSTGRESQL_DB_NAME
-            export WHATSAPP_API_URL=$PROD_WHATSAPP_API_URL
-            export S3_BUCKET="prod-3beep-whatsapp-bot"
-            export STACK_NAME="Prod3beepWhatsappBot"
-            export STAGE_NAME="prod"
-            export ENVIRONMENT_NAME="Prod"
-            export AUTH0_DOMAIN=$PROD_AUTH0_DOMAIN
-            export AUTH0_AUDIENCE=$PROD_AUTH0_AUDIENCE
-            export APPSYNC_CORE_API_URL=$PROD_APPSYNC_CORE_API_URL
-            export APPSYNC_CORE_API_KEY=$PROD_APPSYNC_CORE_API_KEY
-            export DATABASES_LAYER_NAME="ProdDatabases"
-            export REQUESTS_LAYER_NAME="ProdRequests"
-          fi
-        - apt-get update && apt-get install -y python3-pip
-        - pip3 install -U awscli
+        - pip install -U awscli==1.19.8
         - aws configure set default.region $AWS_DEFAULT_REGION
         - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
         - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-        - aws s3 rm --recursive s3://$S3_BUCKET
-        - export DATABASES_LAYER_ARN=$(aws lambda list-layer-versions --layer-name $DATABASES_LAYER_NAME --query 'max_by(LayerVersions, &Version).LayerVersionArn'  --output text)
-        - export REQUESTS_LAYER_ARN=$(aws lambda list-layer-versions --layer-name $REQUESTS_LAYER_NAME --query 'max_by(LayerVersions, &Version).LayerVersionArn'  --output text)
+        - >-
+          export DATABASES_LAYER_ARN=$(aws lambda list-layer-versions
+          --layer-name $DATABASES_LAYER_NAME --query 'max_by(LayerVersions,
+          &Version).LayerVersionArn'  --output text)
+        - >-
+          export REQUESTS_LAYER_ARN=$(aws lambda list-layer-versions
+          --layer-name $REQUESTS_LAYER_NAME --query 'max_by(LayerVersions,
+          &Version).LayerVersionArn'  --output text)
         - pipe: atlassian/aws-sam-deploy:0.5.2
           variables:
             AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
@@ -123,10 +88,13 @@ deploy: &deploy
             WAIT: 'true'
             WAIT_INTERVAL: 60
             DEBUG: 'true'
-
 pipelines:
   branches:
     develop:
-      - <<: *deploy
+      - step:
+          <<: *deploy
+          deployment: develop
     master:
-      - <<: *deploy
+      - step:
+          <<: *deploy
+          deployment: master
