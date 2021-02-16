@@ -14,8 +14,8 @@ deploy:
           --layer-name $DATABASES_LAYER_NAME --query 'max_by(LayerVersions,
           &Version).LayerVersionArn'  --output text)
         - >-
-          export UTILS_LAYER_ARN=$(aws lambda list-layer-versions --layer-name
-          $UTILS_LAYER_NAME --query 'max_by(LayerVersions,
+          export REQUESTS_LAYER_ARN=$(aws lambda list-layer-versions
+          --layer-name $REQUESTS_LAYER_NAME --query 'max_by(LayerVersions,
           &Version).LayerVersionArn'  --output text)
         - pipe: atlassian/aws-sam-deploy:0.5.2
           variables:
@@ -42,7 +42,7 @@ deploy:
                 },
                 {
                   "ParameterKey": "PostgreSQLPort",
-                  "ParameterValue": "5432"
+                  "ParameterValue": ${POSTGRESQL_PORT}
                 },
                 {
                   "ParameterKey": "PostgreSQLDBName",
