@@ -309,6 +309,7 @@ def create_chat_room(**kwargs) -> json:
                 telegramUsername
                 userFirstName
                 userId
+                userNickname
                 userLastName
                 userMiddleName
                 userPrimaryEmail
@@ -522,6 +523,7 @@ def activate_closed_chat_room(**kwargs):
                 telegramUsername
                 userFirstName
                 userId
+                userNickname
                 userLastName
                 userMiddleName
                 userPrimaryEmail
