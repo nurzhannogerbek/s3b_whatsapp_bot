@@ -214,8 +214,7 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
                 chatRoomId: $chatRoomId,
                 messageAuthorId: $messageAuthorId,
                 messageChannelId: $messageChannelId,
-                messageText: $messageText,
-                messageType: "text"
+                messageText: $messageText
             }
         ) {
             channelId
@@ -225,7 +224,7 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
             localMessageId
             messageAuthorId
             messageChannelId
-            messageContentUrl
+            messageContent
             messageCreatedDateTime
             messageDeletedDateTime
             messageId
@@ -233,15 +232,13 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
             messageIsRead
             messageIsSent
             messageText
-            messageType
             messageUpdatedDateTime
             quotedMessage {
                 messageAuthorId
                 messageChannelId
-                messageContentUrl
+                messageContent
                 messageId
                 messageText
-                messageType
             }
         }
     }
