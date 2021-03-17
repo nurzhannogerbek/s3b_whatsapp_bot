@@ -293,8 +293,8 @@ def send_template_to_whatsapp(**kwargs) -> None:
     # Create the request URL address.
     request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
 
-    # Create the parameters.
-    parameters = {
+    # Define the JSON object body of the POST request.
+    data = {
         "to": whatsapp_chat_id,
         "ttl": "P1D",
         "type": "hsm",
@@ -316,7 +316,7 @@ def send_template_to_whatsapp(**kwargs) -> None:
 
     # Execute POST request.
     try:
-        response = requests.post(request_url, json=parameters, headers=headers)
+        response = requests.post(request_url, headers=headers, data=json.dumps(data))
         response.raise_for_status()
     except Exception as error:
         logger.error(error)
