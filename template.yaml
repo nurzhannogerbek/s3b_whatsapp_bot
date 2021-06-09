@@ -57,7 +57,7 @@ Globals:
         APPSYNC_CORE_API_KEY:
           Fn::Sub: "${AppsyncCoreApiKey}"
         FILE_STORAGE_SERVICE_URL:
-          Fn::Sub': "${FileStorageServiceUrl}"
+          Fn::Sub: "${FileStorageServiceUrl}"
 Resources:
   WhatsappApiGateway:
     Type: AWS::Serverless::HttpApi
