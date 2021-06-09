@@ -9,6 +9,8 @@ from threading import Thread
 from queue import Queue
 import requests
 import databases
+from PIL import Image
+import io
 
 
 # Configure the logging tool in the AWS Lambda function.
@@ -24,6 +26,7 @@ POSTGRESQL_DB_NAME = os.environ["POSTGRESQL_DB_NAME"]
 WHATSAPP_API_URL = os.environ["WHATSAPP_API_URL"]
 APPSYNC_CORE_API_URL = os.environ["APPSYNC_CORE_API_URL"]
 APPSYNC_CORE_API_KEY = os.environ["APPSYNC_CORE_API_KEY"]
+FILE_STORAGE_SERVICE_URL = os.environ["FILE_STORAGE_SERVICE_URL"]
 
 # The connection to the database will be created the first time the AWS Lambda function is called.
 # Any subsequent call to the function will use the same database connection until the container stops.
@@ -144,54 +147,6 @@ def get_whatsapp_bot_token(**kwargs) -> AnyStr:
 
     # Return whatsapp's chat bot token.
     return cursor.fetchone()["whatsapp_bot_token"]
-
-
-def send_message_to_whatsapp(**kwargs) -> None:
-    # Check if the input dictionary has all the necessary keys.
-    try:
-        whatsapp_bot_token = kwargs["whatsapp_bot_token"]
-    except KeyError as error:
-        logger.error(error)
-        raise Exception(error)
-    try:
-        whatsapp_chat_id = kwargs["whatsapp_chat_id"]
-    except KeyError as error:
-        logger.error(error)
-        raise Exception(error)
-    try:
-        message_text = kwargs["message_text"]
-    except KeyError as error:
-        logger.error(error)
-        raise Exception(error)
-
-    # Create the request URL address.
-    request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
-
-    # Create the parameters.
-    parameters = {
-        "to": whatsapp_chat_id,
-        "type": "text",
-        "text": {
-            "body": message_text
-        }
-    }
-
-    # Define the header setting.
-    headers = {
-        "Content-Type": "application/json",
-        "D360-Api-Key": whatsapp_bot_token
-    }
-
-    # Execute POST request.
-    try:
-        response = requests.post(request_url, json=parameters, headers=headers)
-        response.raise_for_status()
-    except Exception as error:
-        logger.error(error)
-        raise Exception(error)
-
-    # Return nothing.
-    return None
 
 
 @postgresql_wrapper
@@ -780,6 +735,297 @@ def update_message_data(**kwargs):
     return None
 
 
+def send_message_text_to_whatsapp(**kwargs) -> None:
+    # Check if the input dictionary has all the necessary keys.
+    try:
+        whatsapp_bot_token = kwargs["whatsapp_bot_token"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        whatsapp_chat_id = kwargs["whatsapp_chat_id"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        message_text = kwargs["message_text"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Create the request URL address.
+    request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
+
+    # Create the parameters.
+    parameters = {
+        "to": whatsapp_chat_id,
+        "type": "text",
+        "text": {
+            "body": message_text
+        }
+    }
+
+    # Define the header setting.
+    headers = {
+        "Content-Type": "application/json",
+        "D360-Api-Key": whatsapp_bot_token
+    }
+
+    # Execute POST request.
+    try:
+        response = requests.post(request_url, json=parameters, headers=headers)
+        response.raise_for_status()
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Return nothing.
+    return None
+
+
+def upload_file_to_s3_bucket(**kwargs) -> AnyStr:
+    try:
+        binary_data = kwargs["binary_data"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        chat_room_id = kwargs["chat_room_id"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        file_name = kwargs["file_name"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Define a dictionary of files to send to the s3 bucket url address.
+    files = {
+        "file": binary_data
+    }
+
+    # Execute GET request.
+    try:
+        response = requests.get(
+            "{0}/get_presigned_url_to_upload_file".format(FILE_STORAGE_SERVICE_URL),
+            params={
+                "key": "chat_rooms/{0}/{1}".format(chat_room_id, file_name)
+            }
+        )
+        response.raise_for_status()
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Define a few necessary variables.
+    try:
+        request_url = response.json()["data"]["url"]
+        original_file_url = response.json()["url"]
+        key = response.json()["data"]["fields"]["key"]
+        x_amz_algorithm = response.json()["data"]["fields"]["x-amz-algorithm"]
+        x_amz_credential = response.json()["data"]["fields"]["x-amz-credential"]
+        x_amz_date = response.json()["data"]["fields"]["x-amz-date"]
+        policy = response.json()["data"]["fields"]["policy"]
+        x_amz_signature = response.json()["data"]["fields"]["x-amz-signature"]
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Define the JSON object body of the POST request.
+    data = {
+        "key": key,
+        "x-amz-algorithm": x_amz_algorithm,
+        "x-amz-credential": x_amz_credential,
+        "x-amz-date": x_amz_date,
+        "policy": policy,
+        "x-amz-signature": x_amz_signature
+    }
+
+    # Execute POST request.
+    try:
+        response = requests.post(request_url, data=data, files=files)
+        response.raise_for_status()
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Return the original url address of the file.
+    return original_file_url
+
+
+def get_the_binary_data(**kwargs):
+    # Check if the input dictionary has all the necessary keys.
+    try:
+        whatsapp_bot_token = kwargs["whatsapp_bot_token"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        file_id = kwargs["file_id"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Execute GET request.
+    try:
+        response = requests.get(
+            "{0}/v1/media/{1}".format(WHATSAPP_API_URL, file_id),
+            headers={
+                "D360-API-Key": whatsapp_bot_token
+            }
+        )
+        response.raise_for_status()
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Return the binary data.
+    return response.content, response.headers["Content-Type"]
+
+
+def form_message_format(**kwargs):
+    # Check if the input dictionary has all the necessary keys.
+    try:
+        message = kwargs["message"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        chat_room_id = kwargs["chat_room_id"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        whatsapp_bot_token = kwargs["whatsapp_bot_token"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Define a few necessary variables.
+    text = message.get("text", None)
+    location = message.get("location", None)
+    image = message.get("image", None)
+    video = message.get("video", None)
+    document = message.get("document", None)
+    voice = message.get("voice", None)
+
+    # Define the value of the message text.
+    if text is not None:
+        message_text = text.get("body", None)
+    elif image is not None:
+        message_text = image.get("caption", None)
+    elif video is not None:
+        message_text = video.get("caption", None)
+    else:
+        message_text = None
+
+    # Define the value of the message content.
+    if location is not None:
+        message_content = [
+            {
+                "category": "location",
+                "details": {
+                    "latitude": location.get("latitude", None),
+                    "longitude": location.get("longitude", None)
+                }
+            }
+        ]
+    elif image is not None:
+        binary_data, file_size = get_the_binary_data(
+            whatsapp_bot_token=whatsapp_bot_token,
+            file_id=image["id"],
+        )
+
+        image = Image.open(io.BytesIO(binary_data))
+
+        image_width, image_height = image.size
+
+        message_content = [
+            {
+                "category": "image",
+                "fileName": "{0}.jpeg".format(image["file_id"]),
+                "fileExtension": ".jpeg",
+                "fileSize": file_size,
+                "mimeType": image["mime_type"],
+                "url": upload_file_to_s3_bucket(
+                    binary_data=binary_data,
+                    chat_room_id=chat_room_id,
+                    file_name="{0}.jpeg".format(image["file_id"])
+                ),
+                "dimensions": {
+                    "width": image_width,
+                    "height": image_height
+                }
+            }
+        ]
+    elif video is not None:
+        binary_data, file_size = get_the_binary_data(
+            whatsapp_bot_token=whatsapp_bot_token,
+            file_id=video["id"],
+        )
+
+        message_content = [
+            {
+                "category": "document",
+                "fileName": "{0}.mp4".format(video["id"]),
+                "fileExtension": ".mp4",
+                "fileSize": file_size,
+                "mimeType": video["mime_type"],
+                "url": upload_file_to_s3_bucket(
+                    binary_data=binary_data,
+                    chat_room_id=chat_room_id,
+                    file_name="{0}.mp4".format(video["id"])
+                )
+            }
+        ]
+    elif document is not None:
+        binary_data, file_size = get_the_binary_data(
+            whatsapp_bot_token=whatsapp_bot_token,
+            file_id=document["id"],
+        )
+
+        message_content = [
+            {
+                "category": "document",
+                "fileName": document["filename"],
+                "fileExtension": ".{0}".format(document["filename"].rsplit('.', 1)[1]).lower(),
+                "fileSize": file_size,
+                "mimeType": document["mime_type"],
+                "url": upload_file_to_s3_bucket(
+                    binary_data=binary_data,
+                    chat_room_id=chat_room_id,
+                    file_name=document["filename"]
+                )
+            }
+        ]
+    elif voice is not None:
+        binary_data, file_size = get_the_binary_data(
+            whatsapp_bot_token=whatsapp_bot_token,
+            file_id=voice["id"],
+        )
+
+        message_content = [
+            {
+                "category": "audio",
+                "fileName": "{0}.ogg".format(voice["id"]),
+                "fileExtension": ".ogg",
+                "fileSize": file_size,
+                "mimeType": voice["mime_type"],
+                "url": upload_file_to_s3_bucket(
+                    binary_data=binary_data,
+                    chat_room_id=chat_room_id,
+                    file_name="{0}.ogg".format(voice["id"])
+                )
+            }
+        ]
+    else:
+        message_content = None
+
+    # Return the content of the message.
+    return message_text, message_content
+
+
 def lambda_handler(event, context):
     """
     :param event: The AWS Lambda function uses this parameter to pass in event data to the handler.
@@ -791,10 +1037,9 @@ def lambda_handler(event, context):
     except Exception as error:
         logger.error(error)
         raise Exception(error)
-    keys = body.keys()
 
     # Check the availability of certain keys.
-    if all(key in ["messages", "contacts"] for key in keys):
+    if all(key in ["messages", "contacts"] for key in body.keys()):
         # Define a few necessary variables that will be used in the future.
         try:
             metadata = body["contacts"][0]
@@ -807,18 +1052,17 @@ def lambda_handler(event, context):
             logger.error(error)
             raise Exception(error)
         try:
-            whatsapp_username = metadata["wa_id"]
-        except Exception as error:
-            logger.error(error)
-            raise Exception(error)
-        whatsapp_chat_id = whatsapp_username
-        try:
-            message_information = body["messages"][0]
+            whatsapp_username = whatsapp_chat_id = metadata["wa_id"]
         except Exception as error:
             logger.error(error)
             raise Exception(error)
         try:
-            message_type = message_information["type"]
+            message = body["messages"][0]
+        except Exception as error:
+            logger.error(error)
+            raise Exception(error)
+        try:
+            message_type = message["type"]
         except Exception as error:
             logger.error(error)
             raise Exception(error)
@@ -833,6 +1077,20 @@ def lambda_handler(event, context):
         # Define the instances of the database connections.
         postgresql_connection = reuse_or_recreate_postgresql_connection()
 
+        # Get the aggregated data.
+        aggregated_data = get_aggregated_data(
+            postgresql_connection=postgresql_connection,
+            sql_arguments={
+                "whatsapp_chat_id": "{0}:{1}".format(business_account, whatsapp_chat_id)
+            }
+        )
+
+        # Determine whether this is a new chat room or not.
+        chat_room_id = aggregated_data["chat_room_id"] if aggregated_data is not None else None
+        channel_id = aggregated_data["channel_id"] if aggregated_data is not None else None
+        chat_room_status = aggregated_data["chat_room_status"] if aggregated_data is not None else None
+        client_id = aggregated_data["client_id"] if aggregated_data is not None else None
+
         # Get whatsapp bot token from the database.
         whatsapp_bot_token = get_whatsapp_bot_token(
             postgresql_connection=postgresql_connection,
@@ -841,37 +1099,33 @@ def lambda_handler(event, context):
             }
         )
 
+        # Define the list of available message types.
+        available_types = ["text", "location", "image", "video", "document", "voice"]
+
         # Check the message type.
-        if message_type == "text":
-            # Get the aggregated data.
-            aggregated_data = get_aggregated_data(
-                postgresql_connection=postgresql_connection,
-                sql_arguments={
-                    "whatsapp_chat_id": "{0}:{1}".format(business_account, whatsapp_chat_id)
-                }
+        if chat_room_id is None and any(message_type == available_type for available_type in available_types[1:]):
+            send_message_text_to_whatsapp(
+                whatsapp_bot_token=whatsapp_bot_token,
+                whatsapp_chat_id=whatsapp_chat_id,
+                message_text="🤖💬\nОпишите пожалуйста сперва вашу проблему в текстовом формате."
+            )
+        elif message_type not in available_types:
+            send_message_text_to_whatsapp(
+                whatsapp_bot_token=whatsapp_bot_token,
+                whatsapp_chat_id=whatsapp_chat_id,
+                message_text="🤖💬\nОбработка данного формата сообщения недоступна."
+            )
+        else:
+            # Form the format of the message (text and content) depending on the message category.
+            message_text, message_content = form_message_format(
+                message=message,
+                chat_room_id=chat_room_id,
+                whatsapp_bot_token=whatsapp_bot_token
             )
 
-            # Define several variables that will be used in the future.
-            if aggregated_data is not None:
-                chat_room_id = aggregated_data["chat_room_id"]
-                channel_id = aggregated_data["channel_id"]
-                chat_room_status = aggregated_data["chat_room_status"]
-                client_id = aggregated_data["client_id"]
-            else:
-                chat_room_id, channel_id, chat_room_status, client_id = None, None, None, None
-
-            # Define the message text.
-            try:
-                message_text = message_information["text"]["body"]
-            except Exception as error:
-                logger.error(error)
-                raise Exception(error)
-
-            # Make up the content value of the last chat room message.
-            last_message_content = json.dumps({
-                "messageText": message_text,
-                "messageContent": None
-            })
+            # Form the message content values.
+            last_message_content = json.dumps({"messageText": message_text, "messageContent": message_content})
+            message_content = json.dumps(message_content) if message_content is not None else None
 
             # Check the chat room status.
             if chat_room_status is None:
@@ -928,7 +1182,7 @@ def lambda_handler(event, context):
                 message_author_id=client_id,
                 message_channel_id=channel_id,
                 message_text=message_text,
-                message_content=None
+                message_content=message_content
             )
 
             # Define the id of the created message.
@@ -942,16 +1196,6 @@ def lambda_handler(event, context):
             update_message_data(
                 chat_room_id=chat_room_id,
                 messages_ids=[message_id]
-            )
-        else:
-            # Define the message text.
-            message_text = "🤖💬\nОбработка данного формата в данный момент невозможна."
-
-            # Send the prepared text to the whatsapp client.
-            send_message_to_whatsapp(
-                whatsapp_bot_token=whatsapp_bot_token,
-                message_text=message_text,
-                whatsapp_chat_id=whatsapp_chat_id
             )
 
     # Return the status code 200.

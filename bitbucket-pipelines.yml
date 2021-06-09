@@ -17,6 +17,10 @@ deploy:
           export REQUESTS_LAYER_ARN=$(aws lambda list-layer-versions
           --layer-name $REQUESTS_LAYER_NAME --query 'max_by(LayerVersions,
           &Version).LayerVersionArn'  --output text)
+        - >-
+          export PILLOW_LAYER_ARN=$(aws lambda list-layer-versions
+          --layer-name $PILLOW_LAYER_NAME --query 'max_by(LayerVersions,
+          &Version).LayerVersionArn' --output text)
         - pipe: atlassian/aws-sam-deploy:0.5.2
           variables:
             AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
@@ -83,6 +87,10 @@ deploy:
                 {
                   'ParameterKey': 'RequestsLayerARN',
                   'ParameterValue': '${REQUESTS_LAYER_ARN}'
+                },
+                {
+                  'ParameterKey': 'PillowLayerARN',
+                  'ParameterValue': '${PILLOW_LAYER_ARN}'
                 }
               ]
             WAIT: 'true'

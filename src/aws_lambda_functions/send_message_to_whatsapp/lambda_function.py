@@ -23,6 +23,7 @@ POSTGRESQL_DB_NAME = os.environ["POSTGRESQL_DB_NAME"]
 WHATSAPP_API_URL = os.environ["WHATSAPP_API_URL"]
 APPSYNC_CORE_API_URL = os.environ["APPSYNC_CORE_API_URL"]
 APPSYNC_CORE_API_KEY = os.environ["APPSYNC_CORE_API_KEY"]
+FILE_STORAGE_SERVICE_URL = os.environ["FILE_STORAGE_SERVICE_URL"]
 
 # The connection to the database will be created the first time the AWS Lambda function is called.
 # Any subsequent call to the function will use the same database connection until the container stops.
@@ -366,7 +367,42 @@ def create_chat_room_message(**kwargs) -> Dict[AnyStr, Any]:
     return response.json()
 
 
-def send_message_to_whatsapp(**kwargs) -> None:
+def get_the_presigned_url(**kwargs) -> AnyStr:
+    # Check if the input dictionary has all the necessary keys.
+    try:
+        file_url = kwargs["file_url"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Create the request URL address.
+    request_url = "{0}/get_presigned_url_to_download_file".format(FILE_STORAGE_SERVICE_URL)
+
+    # Create the parameters.
+    parameters = {
+        "key": file_url.split('/', 3)[-1]
+    }
+
+    # Execute GET request.
+    try:
+        response = requests.get(request_url, params=parameters)
+        response.raise_for_status()
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Define the value of the presigned url of the document.
+    try:
+        presigned_url = response.json()["data"]
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Return the value of the presigned url.
+    return presigned_url
+
+
+def send_message_text_to_whatsapp(**kwargs) -> None:
     # Check if the input dictionary has all the necessary keys.
     try:
         whatsapp_bot_token = kwargs["whatsapp_bot_token"]
@@ -393,6 +429,228 @@ def send_message_to_whatsapp(**kwargs) -> None:
         "type": "text",
         "text": {
             "body": message_text
+        }
+    }
+
+    # Define the header setting.
+    headers = {
+        "Content-Type": "application/json",
+        "D360-Api-Key": whatsapp_bot_token
+    }
+
+    # Execute POST request.
+    try:
+        response = requests.post(request_url, json=parameters, headers=headers)
+        response.raise_for_status()
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Return nothing.
+    return None
+
+
+def send_document_to_whatsapp(**kwargs) -> None:
+    # Check if the input dictionary has all the necessary keys.
+    try:
+        whatsapp_bot_token = kwargs["whatsapp_bot_token"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        whatsapp_chat_id = kwargs["whatsapp_chat_id"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        document_url = kwargs["document_url"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        caption = kwargs["caption"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        file_name = kwargs["file_name"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Create the request URL address.
+    request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
+
+    # Create the parameters.
+    parameters = {
+        "to": whatsapp_chat_id,
+        "type": "document",
+        "document": {
+            "link": document_url,
+            "caption": caption,
+            "filename": file_name
+        }
+    }
+
+    # Define the header setting.
+    headers = {
+        "Content-Type": "application/json",
+        "D360-Api-Key": whatsapp_bot_token
+    }
+
+    # Execute POST request.
+    try:
+        response = requests.post(request_url, json=parameters, headers=headers)
+        response.raise_for_status()
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Return nothing.
+    return None
+
+
+def send_image_to_whatsapp(**kwargs) -> None:
+    # Check if the input dictionary has all the necessary keys.
+    try:
+        whatsapp_bot_token = kwargs["whatsapp_bot_token"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        whatsapp_chat_id = kwargs["whatsapp_chat_id"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        image_url = kwargs["image_url"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        caption = kwargs["caption"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Create the request URL address.
+    request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
+
+    # Create the parameters.
+    parameters = {
+        "to": whatsapp_chat_id,
+        "type": "image",
+        "image": {
+            "link": image_url,
+            "caption": caption
+        }
+    }
+
+    # Define the header setting.
+    headers = {
+        "Content-Type": "application/json",
+        "D360-Api-Key": whatsapp_bot_token
+    }
+
+    # Execute POST request.
+    try:
+        response = requests.post(request_url, json=parameters, headers=headers)
+        response.raise_for_status()
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Return nothing.
+    return None
+
+
+def send_video_to_whatsapp(**kwargs) -> None:
+    # Check if the input dictionary has all the necessary keys.
+    try:
+        whatsapp_bot_token = kwargs["whatsapp_bot_token"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        whatsapp_chat_id = kwargs["whatsapp_chat_id"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        video_url = kwargs["video_url"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        caption = kwargs["caption"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Create the request URL address.
+    request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
+
+    # Create the parameters.
+    parameters = {
+        "to": whatsapp_chat_id,
+        "type": "video",
+        "video": {
+            "link": video_url,
+            "caption": caption
+        }
+    }
+
+    # Define the header setting.
+    headers = {
+        "Content-Type": "application/json",
+        "D360-Api-Key": whatsapp_bot_token
+    }
+
+    # Execute POST request.
+    try:
+        response = requests.post(request_url, json=parameters, headers=headers)
+        response.raise_for_status()
+    except Exception as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Return nothing.
+    return None
+
+
+def send_audio_to_whatsapp(**kwargs) -> None:
+    # Check if the input dictionary has all the necessary keys.
+    try:
+        whatsapp_bot_token = kwargs["whatsapp_bot_token"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        whatsapp_chat_id = kwargs["whatsapp_chat_id"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        audio_url = kwargs["audio_url"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+    try:
+        caption = kwargs["caption"]
+    except KeyError as error:
+        logger.error(error)
+        raise Exception(error)
+
+    # Create the request URL address.
+    request_url = "{0}/v1/messages".format(WHATSAPP_API_URL)
+
+    # Create the parameters.
+    parameters = {
+        "to": whatsapp_chat_id,
+        "type": "audio",
+        "audio": {
+            "link": audio_url,
+            "caption": caption
         }
     }
 
@@ -447,6 +705,7 @@ def lambda_handler(event, context):
     input_arguments = results_of_tasks["input_arguments"]
     chat_room_id = input_arguments.get("chat_room_id", None)
     message_text = input_arguments.get("message_text", None)
+    message_content = input_arguments.get("message_content", None)
 
     # Get the aggregated data.
     aggregated_data = get_aggregated_data(
@@ -471,12 +730,63 @@ def lambda_handler(event, context):
     # Send the message to the operator and save it in the database.
     chat_room_message = create_chat_room_message(input_arguments=input_arguments)
 
-    # Send the prepared text to the whatsapp client.
-    send_message_to_whatsapp(
-        whatsapp_bot_token=whatsapp_bot_token,
-        message_text=message_text,
-        whatsapp_chat_id=whatsapp_chat_id
-    )
+    # Send the message text to the telegram.
+    if message_text is not None and message_content is None:
+        send_message_text_to_whatsapp(
+            whatsapp_bot_token=whatsapp_bot_token,
+            whatsapp_chat_id=whatsapp_chat_id,
+            message_text=message_text
+        )
+
+    # Check the value of the message content.
+    if message_content is not None:
+        # Define the list of files.
+        files = json.loads(message_content)
+
+        # Parse the list of files.
+        for file in files:
+            # Define the value of the presigned url.
+            presigned_url = get_the_presigned_url(file_url=file["url"])
+
+            # Define the category of the file.
+            file_category = file["category"]
+
+            # Check file's category and send it to the telegram with the correct telegram api method.
+            if file_category == "document":
+                # Send the document to the whatsapp.
+                send_document_to_whatsapp(
+                    whatsapp_bot_token=whatsapp_bot_token,
+                    whatsapp_chat_id=whatsapp_chat_id,
+                    document_url=presigned_url,
+                    caption=message_text,
+                    file_name=file["fileName"]
+                )
+            elif file_category == "image":
+                # Send the image to the whatsapp.
+                send_image_to_whatsapp(
+                    whatsapp_bot_token=whatsapp_bot_token,
+                    whatsapp_chat_id=whatsapp_chat_id,
+                    image_url=presigned_url,
+                    caption=message_text
+                )
+            elif file_category in ["video", "gif"]:
+                # Send the video to the whatsapp.
+                send_video_to_whatsapp(
+                    whatsapp_bot_token=whatsapp_bot_token,
+                    whatsapp_chat_id=whatsapp_chat_id,
+                    video_url=presigned_url,
+                    caption=message_text
+                )
+            elif file_category == "audio":
+                # Send the audio to the whatsapp.
+                send_audio_to_whatsapp(
+                    whatsapp_bot_token=whatsapp_bot_token,
+                    whatsapp_chat_id=whatsapp_chat_id,
+                    audio_url=presigned_url,
+                    caption=message_text
+                )
+            else:
+                pass
 
     # Return the status code 200.
     return {

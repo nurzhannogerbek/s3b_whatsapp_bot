@@ -1,174 +1,177 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Parameters:
-    PostgreSQLUsername:
-        Type: String
-    PostgreSQLPassword:
-        Type: String
-    PostgreSQLHost:
-        Type: String
-    PostgreSQLPort:
-        Type: Number
-    PostgreSQLDBName:
-        Type: String
-    StageName:
-        Type: String
-    EnvironmentName:
-        Type: String
-    Auth0Domain:
-        Type: String
-    Auth0Audience:
-        Type: String
-    AppsyncCoreApiUrl:
-        Type: String
-    AppsyncCoreApiKey:
-        Type: String
-    WhatsappApiUrl:
-        Type: String
-    DatabasesLayerARN:
-        Type: String
-    RequestsLayerARN:
-        Type: String
+  PostgreSQLUsername:
+    Type: String
+  PostgreSQLPassword:
+    Type: String
+  PostgreSQLHost:
+    Type: String
+  PostgreSQLPort:
+    Type: Number
+  PostgreSQLDBName:
+    Type: String
+  StageName:
+    Type: String
+  EnvironmentName:
+    Type: String
+  Auth0Domain:
+    Type: String
+  Auth0Audience:
+    Type: String
+  AppsyncCoreApiUrl:
+    Type: String
+  AppsyncCoreApiKey:
+    Type: String
+  WhatsappApiUrl:
+    Type: String
+  DatabasesLayerARN:
+    Type: String
+  RequestsLayerARN:
+    Type: String
+  PillowLayerARN:
+    Type: String
 Globals:
-    Function:
-        Runtime: python3.8
-        MemorySize: 10240
-        Timeout: 900
-        Environment:
-            Variables:
-                POSTGRESQL_USERNAME:
-                    Fn::Sub: "${PostgreSQLUsername}"
-                POSTGRESQL_PASSWORD:
-                    Fn::Sub: "${PostgreSQLPassword}"
-                POSTGRESQL_HOST:
-                    Fn::Sub: "${PostgreSQLHost}"
-                POSTGRESQL_PORT:
-                    Fn::Sub: "${PostgreSQLPort}"
-                POSTGRESQL_DB_NAME:
-                    Fn::Sub: "${PostgreSQLDBName}"
-                WHATSAPP_API_URL:
-                    Fn::Sub: "${WhatsappApiUrl}"
-                APPSYNC_CORE_API_URL:
-                    Fn::Sub: "${AppsyncCoreApiUrl}"
-                APPSYNC_CORE_API_KEY:
-                    Fn::Sub: "${AppsyncCoreApiKey}"
+  Function:
+    Runtime: python3.8
+    MemorySize: 10240
+    Timeout: 900
+    Environment:
+      Variables:
+        POSTGRESQL_USERNAME:
+          Fn::Sub: "${PostgreSQLUsername}"
+        POSTGRESQL_PASSWORD:
+          Fn::Sub: "${PostgreSQLPassword}"
+        POSTGRESQL_HOST:
+          Fn::Sub: "${PostgreSQLHost}"
+        POSTGRESQL_PORT:
+          Fn::Sub: "${PostgreSQLPort}"
+        POSTGRESQL_DB_NAME:
+          Fn::Sub: "${PostgreSQLDBName}"
+        WHATSAPP_API_URL:
+          Fn::Sub: "${WhatsappApiUrl}"
+        APPSYNC_CORE_API_URL:
+          Fn::Sub: "${AppsyncCoreApiUrl}"
+        APPSYNC_CORE_API_KEY:
+          Fn::Sub: "${AppsyncCoreApiKey}"
 Resources:
-    WhatsappApiGateway:
-        Type: AWS::Serverless::HttpApi
-        Properties:
-            StageName:
-                Fn::Sub: "${StageName}"
-            CorsConfiguration:
-                AllowMethods:
-                    - POST
-                AllowHeaders:
-                    - "*"
-                AllowOrigins:
-                    - "*"
+  WhatsappApiGateway:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName:
+        Fn::Sub: "${StageName}"
+      CorsConfiguration:
+        AllowMethods:
+          - POST
+        AllowHeaders:
+          - "*"
+        AllowOrigins:
+          - "*"
+      Auth:
+        Authorizers:
+          Auth0Authorizer:
+            JwtConfiguration:
+              issuer:
+                Fn::Sub: "${Auth0Domain}"
+              audience:
+                - Fn::Sub: "${Auth0Audience}"
+            IdentitySource: "$request.header.Authorization"
+  SendMessageFromWhatsapp:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: "${EnvironmentName}SendMessageFromWhatsapp"
+      CodeUri: src/aws_lambda_functions/send_message_from_whatsapp
+      Handler: lambda_function.lambda_handler
+      Events:
+        WhatsappApiGatewayEvent:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: WhatsappApiGateway
+            Path: /send_message_from_whatsapp/{business_account}
+            Method: POST
+      Layers:
+        - Fn::Sub: "${DatabasesLayerARN}"
+        - Fn::Sub: "${RequestsLayerARN}"
+        - Fn::Sub: "${PillowLayerARN}"
+  SendMessageToWhatsapp:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: "${EnvironmentName}SendMessageToWhatsapp"
+      CodeUri: src/aws_lambda_functions/send_message_to_whatsapp
+      Handler: lambda_function.lambda_handler
+      Events:
+        WhatsappApiGatewayEvent:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: WhatsappApiGateway
+            Path: /send_message_to_whatsapp
+            Method: POST
             Auth:
-                Authorizers:
-                    Auth0Authorizer:
-                        JwtConfiguration:
-                            issuer:
-                                Fn::Sub: "${Auth0Domain}"
-                            audience:
-                                - Fn::Sub: "${Auth0Audience}"
-                        IdentitySource: "$request.header.Authorization"
-    SendMessageFromWhatsapp:
-        Type: AWS::Serverless::Function
-        Properties:
-            FunctionName:
-                Fn::Sub: "${EnvironmentName}SendMessageFromWhatsapp"
-            CodeUri: src/aws_lambda_functions/send_message_from_whatsapp
-            Handler: lambda_function.lambda_handler
-            Events:
-                WhatsappApiGatewayEvent:
-                    Type: HttpApi
-                    Properties:
-                        ApiId:
-                            Ref: WhatsappApiGateway
-                        Path: /send_message_from_whatsapp/{business_account}
-                        Method: POST
-            Layers:
-                - Fn::Sub: "${DatabasesLayerARN}"
-                - Fn::Sub: "${RequestsLayerARN}"
-    SendMessageToWhatsapp:
-        Type: AWS::Serverless::Function
-        Properties:
-            FunctionName:
-                Fn::Sub: "${EnvironmentName}SendMessageToWhatsapp"
-            CodeUri: src/aws_lambda_functions/send_message_to_whatsapp
-            Handler: lambda_function.lambda_handler
-            Events:
-                WhatsappApiGatewayEvent:
-                    Type: HttpApi
-                    Properties:
-                        ApiId:
-                            Ref: WhatsappApiGateway
-                        Path: /send_message_to_whatsapp
-                        Method: POST
-                        Auth:
-                            Authorizer: Auth0Authorizer
-            Layers:
-                - Fn::Sub: "${DatabasesLayerARN}"
-                - Fn::Sub: "${RequestsLayerARN}"
-    SendNotificationToWhatsapp:
-        Type: AWS::Serverless::Function
-        Properties:
-            FunctionName:
-                Fn::Sub: "${EnvironmentName}SendNotificationToWhatsapp"
-            CodeUri: src/aws_lambda_functions/send_notification_to_whatsapp
-            Handler: lambda_function.lambda_handler
-            Events:
-                WhatsappApiGatewayEvent:
-                    Type: HttpApi
-                    Properties:
-                        ApiId:
-                            Ref: WhatsappApiGateway
-                        Path: /send_notification_to_whatsapp
-                        Method: POST
-                        Auth:
-                            Authorizer: Auth0Authorizer
-            Layers:
-                - Fn::Sub: "${DatabasesLayerARN}"
-                - Fn::Sub: "${RequestsLayerARN}"
-    GetTemplates:
-        Type: AWS::Serverless::Function
-        Properties:
-            FunctionName:
-                Fn::Sub: "${EnvironmentName}GetTemplates"
-            CodeUri: src/aws_lambda_functions/get_templates
-            Handler: lambda_function.lambda_handler
-            Events:
-                WhatsappApiGatewayEvent:
-                    Type: HttpApi
-                    Properties:
-                        ApiId:
-                            Ref: WhatsappApiGateway
-                        Path: /get_templates
-                        Method: GET
-                        Auth:
-                            Authorizer: Auth0Authorizer
-            Layers:
-                - Fn::Sub: "${DatabasesLayerARN}"
-                - Fn::Sub: "${RequestsLayerARN}"
-    SendTemplateToWhatsapp:
-        Type: AWS::Serverless::Function
-        Properties:
-            FunctionName:
-                Fn::Sub: "${EnvironmentName}SendTemplateToWhatsapp"
-            CodeUri: src/aws_lambda_functions/send_template_to_whatsapp
-            Handler: lambda_function.lambda_handler
-            Events:
-                WhatsappApiGatewayEvent:
-                    Type: HttpApi
-                    Properties:
-                        ApiId:
-                            Ref: WhatsappApiGateway
-                        Path: /send_template_to_whatsapp
-                        Method: POST
-                        Auth:
-                            Authorizer: Auth0Authorizer
-            Layers:
-                - Fn::Sub: "${DatabasesLayerARN}"
-                - Fn::Sub: "${RequestsLayerARN}"
+              Authorizer: Auth0Authorizer
+      Layers:
+        - Fn::Sub: "${DatabasesLayerARN}"
+        - Fn::Sub: "${RequestsLayerARN}"
+  SendNotificationToWhatsapp:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: "${EnvironmentName}SendNotificationToWhatsapp"
+      CodeUri: src/aws_lambda_functions/send_notification_to_whatsapp
+      Handler: lambda_function.lambda_handler
+      Events:
+        WhatsappApiGatewayEvent:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: WhatsappApiGateway
+            Path: /send_notification_to_whatsapp
+            Method: POST
+            Auth:
+              Authorizer: Auth0Authorizer
+      Layers:
+        - Fn::Sub: "${DatabasesLayerARN}"
+        - Fn::Sub: "${RequestsLayerARN}"
+  GetTemplates:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: "${EnvironmentName}GetTemplates"
+      CodeUri: src/aws_lambda_functions/get_templates
+      Handler: lambda_function.lambda_handler
+      Events:
+        WhatsappApiGatewayEvent:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: WhatsappApiGateway
+            Path: /get_templates
+            Method: GET
+            Auth:
+              Authorizer: Auth0Authorizer
+      Layers:
+        - Fn::Sub: "${DatabasesLayerARN}"
+        - Fn::Sub: "${RequestsLayerARN}"
+  SendTemplateToWhatsapp:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: "${EnvironmentName}SendTemplateToWhatsapp"
+      CodeUri: src/aws_lambda_functions/send_template_to_whatsapp
+      Handler: lambda_function.lambda_handler
+      Events:
+        WhatsappApiGatewayEvent:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: WhatsappApiGateway
+            Path: /send_template_to_whatsapp
+            Method: POST
+            Auth:
+              Authorizer: Auth0Authorizer
+      Layers:
+        - Fn::Sub: "${DatabasesLayerARN}"
+        - Fn::Sub: "${RequestsLayerARN}"
