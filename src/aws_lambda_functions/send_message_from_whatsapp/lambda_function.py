@@ -881,7 +881,7 @@ def get_the_binary_data(**kwargs):
         raise Exception(error)
 
     # Return the binary data.
-    return response.content, response.headers["Content-Type"]
+    return response.content, response.headers["Content-Length"]
 
 
 def form_message_format(**kwargs):
