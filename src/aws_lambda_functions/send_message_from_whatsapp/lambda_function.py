@@ -937,21 +937,21 @@ def form_message_format(**kwargs):
             file_id=image["id"],
         )
 
-        image = Image.open(io.BytesIO(binary_data))
+        image_file = Image.open(io.BytesIO(binary_data))
 
-        image_width, image_height = image.size
+        image_width, image_height = image_file.size
 
         message_content = [
             {
                 "category": "image",
-                "fileName": "{0}.jpeg".format(image["file_id"]),
+                "fileName": "{0}.jpeg".format(image["id"]),
                 "fileExtension": ".jpeg",
                 "fileSize": file_size,
                 "mimeType": image["mime_type"],
                 "url": upload_file_to_s3_bucket(
                     binary_data=binary_data,
                     chat_room_id=chat_room_id,
-                    file_name="{0}.jpeg".format(image["file_id"])
+                    file_name="{0}.jpeg".format(image["id"])
                 ),
                 "dimensions": {
                     "width": image_width,
