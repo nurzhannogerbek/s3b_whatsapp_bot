@@ -91,6 +91,10 @@ deploy:
                 {
                   'ParameterKey': 'PillowLayerARN',
                   'ParameterValue': '${PILLOW_LAYER_ARN}'
+                },
+                {
+                  'ParameterKey': 'FileStorageServiceUrl',
+                  'ParameterValue': '${FILE_STORAGE_SERVICE_URL}'
                 }
               ]
             WAIT: 'true'
